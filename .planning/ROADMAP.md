@@ -1,0 +1,154 @@
+# Roadmap: Gash (גש)
+
+## Overview
+
+Six phases take Gash from an empty Expo project to an App Store–ready Hebrew AI dating coach. Phase 1 establishes the non-negotiable foundation (EAS dev build, RTL, navigation shell, Zustand, Cloud Functions scaffold) before any feature code is written. Phase 2 adds phone auth and the core AI chat loop. Phases 3–5 deliver the three remaining screens (tracker, journal, dashboard, tips) in dependency order. Phase 6 hardens and ships.
+
+## Phases
+
+**Phase Numbering:**
+- Integer phases (1, 2, 3): Planned milestone work
+- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+
+Decimal phases appear between their surrounding integers in numeric order.
+
+- [ ] **Phase 1: Foundation** - EAS dev build, Firebase wiring, RTL boot config, Expo Router shell, Zustand stores, Cloud Functions scaffold
+- [ ] **Phase 2: Auth & AI Coach** - Phone OTP auth, Claude API integration via Cloud Function, custom FlatList chat UI, Firestore message persistence
+- [ ] **Phase 3: Approach Tracker & Journal** - Bottom sheet log form, Firestore CRUD, journal list with filters and search
+- [ ] **Phase 4: Dashboard & Analytics** - Metrics computation, gifted-charts visualizations, AI insight strings, real-time updates
+- [ ] **Phase 5: Tips, Missions & Gamification** - Static tips library, weekly mission display and completion, streak counter
+- [ ] **Phase 6: Polish & Launch Prep** - RTL audit, performance hardening, error handling, EAS production build, App Store metadata
+
+## Phase Details
+
+### Phase 1: Foundation
+**Goal**: The app runs as an EAS development build with RTL enforced, all 5 tabs navigable in Hebrew, Zustand stores initialized, and a working Cloud Functions scaffold that can accept a callable request.
+**Depends on**: Nothing (first phase)
+**Requirements**: FNDN-01, FNDN-02, FNDN-03, FNDN-04
+**Success Criteria** (what must be TRUE):
+  1. App installs and launches on a physical iOS and Android device via EAS development build (not Expo Go)
+  2. All UI renders right-to-left — Hebrew text, tab labels, and layout flow from right to left on both platforms
+  3. All 5 tabs (Coach, Log, Journal, Dashboard, Tips) are reachable via bottom tab navigation with Hebrew labels
+  4. Calling the `askCoach` Cloud Function from the app returns a hardcoded response without error (pipeline verified end-to-end)
+  5. Zustand stores (`useAuthStore`, `useChatStore`, `useLogStore`, `useStatsStore`, `useSettingsStore`) are initialized with AsyncStorage persistence and importable from any screen
+**Plans**: TBD
+**UI hint**: yes
+
+Plans:
+- [ ] 01-01: EAS project setup — `eas.json`, development profile, `app.json` plugins (`@react-native-firebase/app`, `expo-build-properties`), `google-services.json` and `GoogleService-Info.plist` wired, SHA fingerprints registered in Firebase Console
+- [ ] 01-02: RTL boot config — `I18nManager.forceRTL(true)` + `allowRTL(true)` in root `_layout.tsx`, one-time reload guard in `useSettingsStore`, verified on physical device
+- [ ] 01-03: Expo Router v3 navigation shell — 5-tab layout with Hebrew labels, placeholder screens for all 5 tabs, tab array ordered for RTL visual layout (right to left: יומן, לוח, +, שליחויות, צ'אט)
+- [ ] 01-04: Zustand stores scaffold — all 5 stores defined with TypeScript interfaces, `persist` middleware wired to AsyncStorage, `expo-secure-store` adapter for auth tokens
+- [ ] 01-05: Cloud Functions v2 scaffold — `functions/` directory initialized, `askCoach` onCall function in `europe-west1` with hardcoded response, `CLAUDE_API_KEY` secret defined via `defineSecret`, Firebase emulator config
+
+### Phase 2: Auth & AI Coach
+**Goal**: Users can sign in with an Israeli phone number, send Hebrew messages to the Gash AI persona, and have their conversation history persist across sessions.
+**Depends on**: Phase 1
+**Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05, CHAT-06
+**Success Criteria** (what must be TRUE):
+  1. User can enter an Israeli phone number, receive an OTP via SMS, verify it, and land on the main app
+  2. User session survives closing and reopening the app (no re-login required)
+  3. User can sign out from any screen and be returned to the auth screen
+  4. User sends a Hebrew message and receives a Hebrew reply from the Gash persona within 2 seconds on a standard Israeli mobile connection
+  5. Conversation history is loaded from Firestore when the chat screen opens, showing previous messages
+  6. User can long-press any AI message to copy it to clipboard
+**Plans**: TBD
+**UI hint**: yes
+
+Plans:
+- [ ] 02-01: Firebase Auth phone OTP flow — sign-in screen with Israeli phone input, OTP verification screen, `@react-native-firebase/auth` integration, test phone numbers configured in Firebase Console (`+972 555 000001` → `123456`)
+- [ ] 02-02: Auth store + session persistence — `useAuthStore` wired to Firebase Auth state listener, token persisted in `expo-secure-store`, protected route logic in root layout, sign-out action
+- [ ] 02-03: `askCoach` Cloud Function — Hebrew system prompt, `claude-haiku-4-5-20251001` API call, sliding window context (last 15 messages), `europe-west1` deployment, `CLAUDE_API_KEY` from Secrets Manager
+- [ ] 02-04: Chat UI — custom RTL `FlatList` with Hebrew message bubbles, typewriter animation for AI responses (simulates streaming), typing indicator (`...`), copy-to-clipboard on long press
+- [ ] 02-05: Firestore message persistence — `useChatStore` reads/writes `/users/{uid}/chatMessages`, messages loaded on screen mount, new messages written fire-and-forget (no await)
+
+### Phase 3: Approach Tracker & Journal
+**Goal**: Users can log a new approach in under 60 seconds via a bottom sheet form, view their full history with filters and search, and edit or delete any entry.
+**Depends on**: Phase 2
+**Requirements**: TRCK-01, TRCK-02, TRCK-03, TRCK-04, TRCK-05, TRCK-06, TRCK-07, JRNL-01, JRNL-02, JRNL-03, JRNL-04, JRNL-05, JRNL-06
+**Success Criteria** (what must be TRUE):
+  1. Tapping the FAB button opens a bottom sheet log form with all 8 fields visible and usable
+  2. A complete approach entry can be submitted in under 60 seconds using dropdowns and presets
+  3. A brief Hebrew AI feedback message appears after saving (e.g., "גישה ישירה — יפה!")
+  4. The journal screen shows all logged entries sorted by date, each displaying chemistry score, approach type, and follow-up result
+  5. User can filter the journal by approach type, date range, and search by location name
+  6. User can tap any entry to view full details, and can edit or delete it from the detail screen
+**Plans**: TBD
+**UI hint**: yes
+
+Plans:
+- [ ] 03-01: `@gorhom/bottom-sheet` v5 log form — RTL form layout, all 8 fields (date picker, location text, approach type dropdown, opener preset, response preset, `@react-native-community/slider` v5 for chemistry 1–10, follow-up type dropdown, notes text area), `react-hook-form` + `zod` validation
+- [ ] 03-02: Firestore approach CRUD — fire-and-forget write on submit, edit/delete actions, `useLogStore` with local optimistic updates, brief AI feedback string generated via `getApproachFeedback` Cloud Function after save
+- [ ] 03-03: Journal list screen — RTL `FlatList` showing all entries (newest first), list item layout with chemistry score prominent, approach type, and follow-up result, `firestore.indexes.json` composite indexes pre-created for filter queries
+- [ ] 03-04: Journal filters + search — filter pills for approach type, date range modal, location search input, filtered Firestore queries using pre-created indexes, entry detail screen with full fields
+
+### Phase 4: Dashboard & Analytics
+**Goal**: Users can see a real-time dashboard of their personal coaching metrics — 4 KPIs, 2 charts, and an AI-generated insight string derived from their logged data.
+**Depends on**: Phase 3
+**Requirements**: DASH-01, DASH-02, DASH-03, DASH-04, DASH-05
+**Success Criteria** (what must be TRUE):
+  1. Dashboard displays all 4 key metrics: total approaches, success rate (%), average chemistry score, and top approach type
+  2. A line graph shows chemistry score trend over the last 30 entries with RTL Y-axis on the right side
+  3. A bar chart shows success rate broken down by the 4 approach types
+  4. An AI insight string (e.g., "גישות ישירות עובדות הכי טוב בשבילך") appears below the charts, generated from the user's data
+  5. All metrics and charts update without a manual refresh when a new approach is logged
+**Plans**: TBD
+**UI hint**: yes
+
+Plans:
+- [ ] 04-01: Metrics computation — `useStatsStore` derives 4 KPIs from `useLogStore` data reactively, denormalized `totalApproaches` counter on Firestore user doc for fast reads
+- [ ] 04-02: `react-native-gifted-charts` visualizations — line chart (chemistry trend, 30 entries, `yAxisSide='right'`), bar chart (success rate by type, 4 bars), both RTL-tested on physical device
+- [ ] 04-03: AI insight strings — `generateInsights` Cloud Function reads last 30 approach entries, calls `claude-haiku-4-5-20251001` with structured prompt, writes insight strings to `/users/{uid}/insights/{insightId}`, displayed in dashboard
+- [ ] 04-04: Real-time updates — `onSnapshot` listener on `/users/{uid}/approaches` wired to `useLogStore`, stats recomputed on every snapshot, dashboard re-renders without navigation
+
+### Phase 5: Tips, Missions & Gamification
+**Goal**: Users can browse a Hebrew tips library, see their current weekly mission, mark it complete, and track their daily approach streak.
+**Depends on**: Phase 4
+**Requirements**: TIPS-01, TIPS-02, TIPS-03, TIPS-04, TIPS-05, TIPS-06
+**Success Criteria** (what must be TRUE):
+  1. Tips screen shows a categorized library of Hebrew tips (approach, conversation, confidence) browsable without an internet connection
+  2. User can search tips by Hebrew keyword and see filtered results instantly
+  3. Current weekly mission is displayed prominently on the tips/missions screen
+  4. User can tap to mark the current mission complete, and the completion is visually confirmed (Lottie animation)
+  5. Streak counter shows the correct count of consecutive days with at least one logged approach
+  6. Streak count is visible in the tab bar or a persistent header element on every screen
+**Plans**: TBD
+**UI hint**: yes
+
+Plans:
+- [ ] 05-01: Static tips library — Hebrew tips data file (JSON/TS) organized by category, `FlatList` with category filter tabs, keyword search with instant local filtering (no server call)
+- [ ] 05-02: Weekly mission display — mission data structure (title, description, target count, week identifier), current mission shown in prominent card, mission rotation logic (new mission each ISO week)
+- [ ] 05-03: Mission completion + streak — mark-complete action writes to Firestore, Lottie celebration animation on completion, streak computed from approach log dates (consecutive days with entries), streak persisted in `useStatsStore`
+- [ ] 05-04: Streak visibility — streak badge integrated into tab bar label or persistent header component, visible on all 5 tabs without additional navigation
+
+### Phase 6: Polish & Launch Prep
+**Goal**: The app passes an RTL layout audit, handles all error states gracefully, and is submitted to the App Store and Google Play via EAS Submit with full Hebrew store metadata.
+**Depends on**: Phase 5
+**Requirements**: (all 36 v1 requirements complete — this phase delivers shipability)
+**Success Criteria** (what must be TRUE):
+  1. Every screen passes an RTL audit — no left-aligned text, no mirrored icons, no broken layouts on both iOS and Android physical devices
+  2. All network errors (AI timeout, Firestore offline, auth failure) show a Hebrew error message and a recovery action; no unhandled crashes
+  3. Cold-start time on a mid-range Android device is under 3 seconds from tap to interactive
+  4. EAS production build succeeds for both platforms with managed credentials (no local keystore required)
+  5. App Store Connect and Google Play Console listings have Hebrew title, description, screenshots, and privacy policy URL
+**Plans**: TBD
+
+Plans:
+- [ ] 06-01: RTL audit pass — systematic screen-by-screen review on physical iOS and Android devices, fix all text alignment, icon direction, and layout mirroring issues
+- [ ] 06-02: Error handling + loading states — Hebrew error messages for all failure modes (network timeout, auth error, Firestore offline, AI rate limit), loading skeletons on data-heavy screens, retry actions
+- [ ] 06-03: Performance pass — Hermes engine verified enabled, `FlatList` `getItemLayout` on chat and journal, Firestore query limits, cold-start profiling on Android
+- [ ] 06-04: EAS production build + submit — `eas.json` production profile, `eas build --platform all --profile production`, `eas submit` configured for both stores, Hebrew App Store metadata, privacy policy URL, age rating (17+)
+
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. Foundation | 0/5 | Not started | - |
+| 2. Auth & AI Coach | 0/5 | Not started | - |
+| 3. Approach Tracker & Journal | 0/4 | Not started | - |
+| 4. Dashboard & Analytics | 0/4 | Not started | - |
+| 5. Tips, Missions & Gamification | 0/4 | Not started | - |
+| 6. Polish & Launch Prep | 0/4 | Not started | - |

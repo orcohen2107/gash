@@ -125,10 +125,10 @@
 | FNDN-02 | Phase 1 | Pending |
 | FNDN-03 | Phase 1 | Pending |
 | FNDN-04 | Phase 1 | Pending |
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
+| AUTH-01 | Phase 2 | Pending |
+| AUTH-02 | Phase 2 | Pending |
+| AUTH-03 | Phase 2 | Pending |
+| AUTH-04 | Phase 2 | Pending |
 | CHAT-01 | Phase 2 | Pending |
 | CHAT-02 | Phase 2 | Pending |
 | CHAT-03 | Phase 2 | Pending |
@@ -167,4 +167,4 @@
 
 ---
 *Requirements defined: 2026-04-07*
-*Last updated: 2026-04-07 after initialization*
+*Last updated: 2026-04-07 — AUTH-* moved from Phase 1 to Phase 2 (auth ships with chat, both require EAS dev build)*
