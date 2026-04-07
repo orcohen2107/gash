@@ -188,10 +188,12 @@ Edge Function אחת: `ask-coach`. ניתוב לפי שדה `type` בבקשה.
 
 | type | מופעל מתי | מודל | מחזיר |
 |------|-----------|------|--------|
-| `coach` | כל הודעה בצ'אט | haiku | טקסט |
-| `reply-coach` | המשתמש מדביק הודעה שקיבל | **sonnet** | JSON — ניתוח + 3 תגובות מוכנות |
-| `situation-opener` | בחירת מיקום לפנייה | haiku | JSON — 3 פתיחות עם המשך שיחה |
-| `profile` | אחרי שמירת גישה | haiku | JSON — פידבק + טיפ |
+| `onboarding` | פעם אחת — אחרי הרשמה | haiku | שיחת הכרות → JSON פרופיל |
+| `coach` | כל הודעה בצ'אט | haiku | טקסט (מזהה intent: boost/debrief/reply) |
+| `reply-coach` | הודעה או thread שלם | **sonnet** | JSON — ניתוח + 3 תגובות |
+| `situation-opener` | בחירת מיקום לפנייה | haiku | JSON — 3 פתיחות + followUp |
+| `profile` | אחרי שמירת גישה מוצלחת | haiku | JSON — פידבק + טיפ |
+| `debrief` | אחרי גישה כושלת (chemistry ≤ 4) | haiku | שיחת ניתוח — שאלה → אבחנה → משימה |
 | `insights` | דשבורד / כל 24 שעות | haiku | JSON — תובנות + משימה שבועית |
 
 לפני כל קריאת `coach` — בנה `userProfile` מהגישות ושלח אותו בתוך ה-system prompt:

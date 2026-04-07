@@ -26,7 +26,7 @@
 - [ ] **TRCK-01**: User can open a quick log form (bottom sheet) via FAB button
 - [ ] **TRCK-02**: Log form includes all 8 fields: date, location, approach type, opener, her response, chemistry score (1-10 slider), follow-up type, notes
 - [ ] **TRCK-03**: Log form submits in under 60 seconds (dropdowns/presets for common values)
-- [ ] **TRCK-04**: Approach entry is saved to Firestore on submit
+- [ ] **TRCK-04**: Approach entry is saved to Supabase (`approaches` table) on submit
 - [ ] **TRCK-05**: User sees a brief AI feedback message after saving (e.g., "גישה ישירה — יפה!")
 - [ ] **TRCK-06**: User can edit an existing approach entry
 - [ ] **TRCK-07**: User can delete an approach entry
