@@ -186,12 +186,13 @@ user_insights  (user_id, weekly_mission, missions_completed, streak, last_analys
 
 Edge Function אחת: `ask-coach`. ניתוב לפי שדה `type` בבקשה.
 
-| type | מופעל מתי | מחזיר |
-|------|-----------|--------|
-| `coach` | כל הודעה בצ'אט | טקסט חופשי |
-| `profile` | אחרי שמירת גישה | JSON — פידבק קצר |
-| `insights` | פתיחת דשבורד / כל 24 שעות | JSON — insight strings |
-| `screenshot` | העלאת תמונה (v2) | טקסט — ניתוח שיחה |
+| type | מופעל מתי | מודל | מחזיר |
+|------|-----------|------|--------|
+| `coach` | כל הודעה בצ'אט | haiku | טקסט |
+| `reply-coach` | המשתמש מדביק הודעה שקיבל | **sonnet** | JSON — ניתוח + 3 תגובות מוכנות |
+| `situation-opener` | בחירת מיקום לפנייה | haiku | JSON — 3 פתיחות עם המשך שיחה |
+| `profile` | אחרי שמירת גישה | haiku | JSON — פידבק + טיפ |
+| `insights` | דשבורד / כל 24 שעות | haiku | JSON — תובנות + משימה שבועית |
 
 לפני כל קריאת `coach` — בנה `userProfile` מהגישות ושלח אותו בתוך ה-system prompt:
 ```ts
