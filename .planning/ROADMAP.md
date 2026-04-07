@@ -99,8 +99,9 @@ Plans:
 Plans:
 - [ ] 04-01: Metrics computation — `useStatsStore` derives 4 KPIs from `useLogStore` data reactively, or via Supabase aggregate query (`count`, `avg`) on `approaches` table
 - [ ] 04-02: `react-native-gifted-charts` visualizations — line chart (chemistry trend, 30 entries, `yAxisSide='right'`), bar chart (success rate by type, 4 bars), both RTL-tested on physical device
-- [ ] 04-03: AI insight strings — `ask-coach` Edge Function called with last 30 approach entries, returns 2-3 Hebrew insight strings, written to `user_insights` table, displayed in dashboard
-- [ ] 04-04: Real-time updates — Supabase Realtime `channel` subscription on `approaches` table wired to `useLogStore`, stats recomputed on insert/update, dashboard re-renders without navigation
+- [ ] 04-03: `buildUserContext()` — function in Edge Function that queries last 30 approaches, computes `bestType/worstType/avgChemistry/recentPattern`, injected into every `coach` system prompt from this phase onward (see `.planning/skills/user-profile-builder.md`)
+- [ ] 04-04: AI insight strings — `ask-coach` with `type: 'insights'` called on dashboard open, returns JSON with 2-3 Hebrew insight strings + weeklyMission, written to `user_insights` table (see `.planning/agents-prompts.md`)
+- [ ] 04-05: Real-time updates — Supabase Realtime `channel` subscription on `approaches` table wired to `useLogStore`, stats recomputed on insert/update, dashboard re-renders without navigation
 
 ### Phase 5: Tips, Missions & Gamification
 **Goal**: Users can browse a Hebrew tips library, see their current weekly mission, mark it complete, and track their daily approach streak.
