@@ -22,26 +22,51 @@ Deno.serve(async (req) => {
   if (error || !user) return new Response('Unauthorized', { status: 401 })
 
   // 2. Parse request
-  const { type = 'coach', messages, body } = await req.json()
+  const { type: explicitType, messages: clientMessages, body } = await req.json()
 
-  // 3. Build user context (for coach + insights)
+  // 3. Detect intent — routing happens HERE, not in Claude
+  const { detectIntent } = await import('./intentRouter.ts')
+  const type = detectIntent(body?.text ?? '', explicitType)
+
+  // 4. Build user context
   const userProfile = await buildUserContext(user.id, supabase)
 
-  // 4. Route to correct prompt
+  // 5. Fetch chat history for coach/debrief (Claude doesn't remember between calls)
+  let messages = clientMessages
+  if (['coach', 'debrief'].includes(type) && !clientMessages) {
+    const { data: history } = await supabase
+      .from('chat_messages')
+      .select('role, content')
+      .order('created_at', { ascending: true })
+      .limit(15)
+    messages = [
+      ...(history ?? []),
+      { role: 'user', content: body?.text }
+    ]
+  }
+
+  // 6. Route to correct prompt
   const systemPrompt = buildSystemPrompt(type, userProfile, body)
 
-  // 5. Call Claude
+  // 7. Call Claude — JSON agents use prefill
+  const isJsonAgent = ['approach-feedback', 'insights', 'reply-coach', 'situation-opener', 'onboarding'].includes(type)
+  const finalMessages = isJsonAgent
+    ? [...messages, { role: 'assistant', content: '{' }]
+    : messages
+
   const response = await claude.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
+    model: MODEL_OVERRIDES[type] ?? 'claude-haiku-4-5-20251001',
+    max_tokens: isJsonAgent ? 2048 : 1024,
     system: systemPrompt,
-    messages: messages ?? [{ role: 'user', content: body?.text }],
+    messages: finalMessages,
   })
 
-  const text = response.content[0].type === 'text' ? response.content[0].text : ''
+  // 8. Handle response — JSON agents prepend the '{' prefill
+  const rawText = response.content[0].type === 'text' ? response.content[0].text : ''
+  const text = isJsonAgent ? '{' + rawText : rawText
 
-  // 6. Save to chat_messages if type === 'coach'
-  if (type === 'coach') {
+  // 9. Save to chat_messages for conversational agents
+  if (['coach', 'debrief', 'onboarding'].includes(type)) {
     await supabase.from('chat_messages').insert([
       { user_id: user.id, role: 'assistant', content: text }
     ])

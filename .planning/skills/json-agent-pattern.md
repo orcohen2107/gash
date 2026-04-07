@@ -2,6 +2,29 @@
 
 איך לגרום ל-Claude להחזיר JSON נקי + parse בטוח עם fallback.
 
+## Prefill — הטריק הכי טוב לJSON
+
+במקום לבקש JSON, **תתחיל את תשובת Claude בעצמך**:
+
+```ts
+const response = await claude.messages.create({
+  model: 'claude-haiku-4-5-20251001',
+  max_tokens: 1024,
+  system: systemPrompt,
+  messages: [
+    ...history,
+    { role: 'user', content: userMessage },
+    { role: 'assistant', content: '{' }  // ← prefill: מכריח JSON
+  ],
+})
+
+// Claude ממשיך מאיפה שעצרנו — מוסיפים בחזרה את ה-{
+const fullText = '{' + response.content[0].text
+const result = safeParseJSON(fullText)
+```
+
+זה עובד בכמעט 100% מהמקרים — Claude לא יכול לשבור JSON כי הוא כבר התחיל אותו.
+
 ## בפרומפט — כללים ש-Claude מקשיב להם
 
 ```

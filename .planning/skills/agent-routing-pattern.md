@@ -2,7 +2,36 @@
 
 איך Edge Function אחת מנתבת בין 7 agents לפי `type`.
 
-## Router
+## Intent Router — לפני Claude
+
+```ts
+// supabase/functions/ask-coach/intentRouter.ts
+// רץ לפני הקריאה לClaude — Claude לא מנתב, הbackend מנתב
+
+export function detectIntent(message: string, explicitType?: string): AgentType {
+  // אם הfrontend שלח type מפורש — תכבד אותו
+  if (explicitType) return explicitType as AgentType
+
+  const msg = message.toLowerCase().trim()
+
+  // reply-coach — הודעה שקיבל ממישהי
+  if (/היא כתבה|היא שלחה|קיבלתי הודעה|מה אני עונה|מה לענות|מה להגיב/.test(msg))
+    return 'reply-coach'
+
+  // boost — עומד לפנות עכשיו
+  if (/עומד לפנות|אני בדרך|עומד לגשת|יש לי בחורה|יש פה/.test(msg))
+    return 'boost'
+
+  // situation-opener — בקשת פתיחות לסיטואציה
+  if (/איך פותח|מה אומרים|פתיחה ל|איך מתחיל/.test(msg))
+    return 'situation-opener'
+
+  // ברירת מחדל
+  return 'coach'
+}
+```
+
+## Router הראשי
 
 ```ts
 // supabase/functions/ask-coach/router.ts

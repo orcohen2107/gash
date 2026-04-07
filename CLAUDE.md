@@ -188,13 +188,18 @@ Edge Function אחת: `ask-coach`. ניתוב לפי שדה `type` בבקשה.
 
 | type | מופעל מתי | מודל | מחזיר |
 |------|-----------|------|--------|
-| `onboarding` | פעם אחת — אחרי הרשמה | haiku | שיחת הכרות → JSON פרופיל |
-| `coach` | כל הודעה בצ'אט | haiku | טקסט (מזהה intent: boost/debrief/reply) |
-| `reply-coach` | הודעה או thread שלם | **sonnet** | JSON — ניתוח + 3 תגובות |
+| `onboarding` | פעם אחת — אחרי הרשמה | haiku | multi-turn (4 שלבים) → JSON פרופיל |
+| `coach` | כל הודעה בצ'אט | haiku | טקסט + היסטוריית 15 הודעות |
+| `boost` | backend זיהה "עומד לפנות" | haiku | 2 משפטים: ביטחון + פתיחה מוכנה |
+| `reply-coach` | הודעה בודדת / thread שלם | **sonnet** | JSON — ניתוח + 3 תגובות |
 | `situation-opener` | בחירת מיקום לפנייה | haiku | JSON — 3 פתיחות + followUp |
-| `profile` | אחרי שמירת גישה מוצלחת | haiku | JSON — פידבק + טיפ |
-| `debrief` | אחרי גישה כושלת (chemistry ≤ 4) | haiku | שיחת ניתוח — שאלה → אבחנה → משימה |
+| `approach-feedback` | אחרי כל שמירת גישה | haiku | JSON — פידבק + טיפ |
+| `debrief` | אחרי גישה כושלת (chemistry ≤ 4) | haiku | multi-turn (2 שלבים): שאלה → אבחנה |
 | `insights` | דשבורד / כל 24 שעות | haiku | JSON — תובנות + משימה שבועית |
+
+**routing:** backend מזהה intent מטקסט לפני Claude. ראה `skills/agent-routing-pattern.md`.
+**JSON agents** משתמשים ב-prefill (`{ role: 'assistant', content: '{' }`). ראה `skills/json-agent-pattern.md`.
+**היסטוריית צ'אט:** נשלפת מ-`chat_messages` ב-backend, לא בclient. Claude לא זוכר בין קריאות.
 
 לפני כל קריאת `coach` — בנה `userProfile` מהגישות ושלח אותו בתוך ה-system prompt:
 ```ts
