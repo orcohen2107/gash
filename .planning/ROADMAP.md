@@ -2,7 +2,7 @@
 
 ## Overview
 
-Six phases take Gash from an empty Expo project to an App Store–ready Hebrew AI dating coach. Phase 1 establishes the non-negotiable foundation (EAS dev build, RTL, navigation shell, Zustand, Cloud Functions scaffold) before any feature code is written. Phase 2 adds phone auth and the core AI chat loop. Phases 3–5 deliver the three remaining screens (tracker, journal, dashboard, tips) in dependency order. Phase 6 hardens and ships.
+Six phases take Gash from an empty Expo project to an App Store–ready Hebrew AI dating coach. Phase 1 establishes the foundation (Supabase project + schema, RTL boot config, Expo Router navigation shell, Zustand stores, Supabase Edge Function scaffold) before any feature code is written. No EAS dev build required — Expo Go works throughout development. Phase 2 adds phone auth and the core AI chat loop. Phases 3–5 deliver the tracker, journal, dashboard, and tips. Phase 6 hardens and ships.
 
 ## Phases
 
@@ -12,8 +12,8 @@ Six phases take Gash from an empty Expo project to an App Store–ready Hebrew A
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - EAS dev build, Firebase wiring, RTL boot config, Expo Router shell, Zustand stores, Cloud Functions scaffold
-- [ ] **Phase 2: Auth & AI Coach** - Phone OTP auth, Claude API integration via Cloud Function, custom FlatList chat UI, Firestore message persistence
+- [ ] **Phase 1: Foundation** - Supabase project + schema, RTL boot config, Expo Router shell, Zustand stores, Edge Function scaffold (Expo Go compatible)
+- [ ] **Phase 2: Auth & AI Coach** - Phone OTP auth (Supabase+Twilio), Claude API via Edge Function, custom FlatList chat UI, Supabase message persistence
 - [ ] **Phase 3: Approach Tracker & Journal** - Bottom sheet log form, Firestore CRUD, journal list with filters and search
 - [ ] **Phase 4: Dashboard & Analytics** - Metrics computation, gifted-charts visualizations, AI insight strings, real-time updates
 - [ ] **Phase 5: Tips, Missions & Gamification** - Static tips library, weekly mission display and completion, streak counter
@@ -22,24 +22,25 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Foundation
-**Goal**: The app runs as an EAS development build with RTL enforced, all 5 tabs navigable in Hebrew, Zustand stores initialized, and a working Cloud Functions scaffold that can accept a callable request.
+**Goal**: The app runs in Expo Go with RTL enforced, all 5 tabs navigable in Hebrew, Zustand stores initialized, Supabase schema migrated, and a working Edge Function scaffold that returns a hardcoded response.
 **Depends on**: Nothing (first phase)
 **Requirements**: FNDN-01, FNDN-02, FNDN-03, FNDN-04
 **Success Criteria** (what must be TRUE):
-  1. App installs and launches on a physical iOS and Android device via EAS development build (not Expo Go)
+  1. App runs in Expo Go on iOS and Android (no EAS dev build required)
   2. All UI renders right-to-left — Hebrew text, tab labels, and layout flow from right to left on both platforms
   3. All 5 tabs (Coach, Log, Journal, Dashboard, Tips) are reachable via bottom tab navigation with Hebrew labels
-  4. Calling the `askCoach` Cloud Function from the app returns a hardcoded response without error (pipeline verified end-to-end)
+  4. Calling the `ask-coach` Supabase Edge Function from the app returns a hardcoded response without error (pipeline verified end-to-end)
   5. Zustand stores (`useAuthStore`, `useChatStore`, `useLogStore`, `useStatsStore`, `useSettingsStore`) are initialized with AsyncStorage persistence and importable from any screen
+  6. Supabase schema is migrated: `users`, `approaches`, `chat_messages`, `user_insights` tables with RLS policies
 **Plans**: TBD
 **UI hint**: yes
 
 Plans:
-- [ ] 01-01: EAS project setup — `eas.json`, development profile, `app.json` plugins (`@react-native-firebase/app`, `expo-build-properties`), `google-services.json` and `GoogleService-Info.plist` wired, SHA fingerprints registered in Firebase Console
-- [ ] 01-02: RTL boot config — `I18nManager.forceRTL(true)` + `allowRTL(true)` in root `_layout.tsx`, one-time reload guard in `useSettingsStore`, verified on physical device
+- [ ] 01-01: Supabase project setup — create Supabase project, run schema migrations (`users`, `approaches`, `chat_messages`, `user_insights`), RLS policies for user-owned data, `SUPABASE_URL` + `SUPABASE_ANON_KEY` in `.env`, Supabase CLI configured
+- [ ] 01-02: RTL boot config — `I18nManager.forceRTL(true)` + `allowRTL(true)` in root `_layout.tsx`, one-time reload guard in `useSettingsStore`, verified on physical device via Expo Go
 - [ ] 01-03: Expo Router v3 navigation shell — 5-tab layout with Hebrew labels, placeholder screens for all 5 tabs, tab array ordered for RTL visual layout (right to left: יומן, לוח, +, שליחויות, צ'אט)
 - [ ] 01-04: Zustand stores scaffold — all 5 stores defined with TypeScript interfaces, `persist` middleware wired to AsyncStorage, `expo-secure-store` adapter for auth tokens
-- [ ] 01-05: Cloud Functions v2 scaffold — `functions/` directory initialized, `askCoach` onCall function in `europe-west1` with hardcoded response, `CLAUDE_API_KEY` secret defined via `defineSecret`, Firebase emulator config
+- [ ] 01-05: Supabase Edge Function scaffold — `supabase/functions/ask-coach/index.ts` with Deno, hardcoded Hebrew response, `CLAUDE_API_KEY` in Supabase secrets, `supabase functions serve` for local dev, end-to-end call verified from app
 
 ### Phase 2: Auth & AI Coach
 **Goal**: Users can sign in with an Israeli phone number, send Hebrew messages to the Gash AI persona, and have their conversation history persist across sessions.
@@ -50,17 +51,17 @@ Plans:
   2. User session survives closing and reopening the app (no re-login required)
   3. User can sign out from any screen and be returned to the auth screen
   4. User sends a Hebrew message and receives a Hebrew reply from the Gash persona within 2 seconds on a standard Israeli mobile connection
-  5. Conversation history is loaded from Firestore when the chat screen opens, showing previous messages
+  5. Conversation history loads from Supabase when the chat screen opens, showing previous messages
   6. User can long-press any AI message to copy it to clipboard
 **Plans**: TBD
 **UI hint**: yes
 
 Plans:
-- [ ] 02-01: Firebase Auth phone OTP flow — sign-in screen with Israeli phone input, OTP verification screen, `@react-native-firebase/auth` integration, test phone numbers configured in Firebase Console (`+972 555 000001` → `123456`)
-- [ ] 02-02: Auth store + session persistence — `useAuthStore` wired to Firebase Auth state listener, token persisted in `expo-secure-store`, protected route logic in root layout, sign-out action
-- [ ] 02-03: `askCoach` Cloud Function — Hebrew system prompt, `claude-haiku-4-5-20251001` API call, sliding window context (last 15 messages), `europe-west1` deployment, `CLAUDE_API_KEY` from Secrets Manager
+- [ ] 02-01: Supabase Auth phone OTP flow — sign-in screen with Israeli phone input (`+972` prefix), OTP verification screen, `supabase.auth.signInWithOtp({ phone })` + `verifyOtp`, Twilio configured in Supabase Dashboard, test number configured
+- [ ] 02-02: Auth store + session persistence — `useAuthStore` wired to `supabase.auth.onAuthStateChange`, JWT token persisted in `expo-secure-store`, protected route logic in root layout, sign-out action
+- [ ] 02-03: `ask-coach` Edge Function — full Claude integration: Hebrew system prompt, `claude-haiku-4-5-20251001` API call, sliding window context (last 15 messages from `chat_messages` table), JWT auth verification, `CLAUDE_API_KEY` from Supabase secrets
 - [ ] 02-04: Chat UI — custom RTL `FlatList` with Hebrew message bubbles, typewriter animation for AI responses (simulates streaming), typing indicator (`...`), copy-to-clipboard on long press
-- [ ] 02-05: Firestore message persistence — `useChatStore` reads/writes `/users/{uid}/chatMessages`, messages loaded on screen mount, new messages written fire-and-forget (no await)
+- [ ] 02-05: Supabase message persistence — `useChatStore` reads/writes `chat_messages` table via `@supabase/supabase-js`, messages loaded on screen mount ordered by `created_at`, new messages inserted (no optimistic UI for MVP)
 
 ### Phase 3: Approach Tracker & Journal
 **Goal**: Users can log a new approach in under 60 seconds via a bottom sheet form, view their full history with filters and search, and edit or delete any entry.
@@ -78,9 +79,9 @@ Plans:
 
 Plans:
 - [ ] 03-01: `@gorhom/bottom-sheet` v5 log form — RTL form layout, all 8 fields (date picker, location text, approach type dropdown, opener preset, response preset, `@react-native-community/slider` v5 for chemistry 1–10, follow-up type dropdown, notes text area), `react-hook-form` + `zod` validation
-- [ ] 03-02: Firestore approach CRUD — fire-and-forget write on submit, edit/delete actions, `useLogStore` with local optimistic updates, brief AI feedback string generated via `getApproachFeedback` Cloud Function after save
-- [ ] 03-03: Journal list screen — RTL `FlatList` showing all entries (newest first), list item layout with chemistry score prominent, approach type, and follow-up result, `firestore.indexes.json` composite indexes pre-created for filter queries
-- [ ] 03-04: Journal filters + search — filter pills for approach type, date range modal, location search input, filtered Firestore queries using pre-created indexes, entry detail screen with full fields
+- [ ] 03-02: Supabase approach CRUD — insert/update/delete on `approaches` table, `useLogStore` with local optimistic updates, brief AI feedback string generated via `ask-coach` Edge Function call after save
+- [ ] 03-03: Journal list screen — RTL `FlatList` showing all entries (newest first), list item layout with chemistry score prominent, approach type, and follow-up result, Supabase query with `order('date', { ascending: false })`
+- [ ] 03-04: Journal filters + search — filter pills for approach type, date range modal, location search input, Supabase `.eq()` / `.gte()` / `.ilike()` query chaining, entry detail screen with full fields
 
 ### Phase 4: Dashboard & Analytics
 **Goal**: Users can see a real-time dashboard of their personal coaching metrics — 4 KPIs, 2 charts, and an AI-generated insight string derived from their logged data.
@@ -96,10 +97,10 @@ Plans:
 **UI hint**: yes
 
 Plans:
-- [ ] 04-01: Metrics computation — `useStatsStore` derives 4 KPIs from `useLogStore` data reactively, denormalized `totalApproaches` counter on Firestore user doc for fast reads
+- [ ] 04-01: Metrics computation — `useStatsStore` derives 4 KPIs from `useLogStore` data reactively, or via Supabase aggregate query (`count`, `avg`) on `approaches` table
 - [ ] 04-02: `react-native-gifted-charts` visualizations — line chart (chemistry trend, 30 entries, `yAxisSide='right'`), bar chart (success rate by type, 4 bars), both RTL-tested on physical device
-- [ ] 04-03: AI insight strings — `generateInsights` Cloud Function reads last 30 approach entries, calls `claude-haiku-4-5-20251001` with structured prompt, writes insight strings to `/users/{uid}/insights/{insightId}`, displayed in dashboard
-- [ ] 04-04: Real-time updates — `onSnapshot` listener on `/users/{uid}/approaches` wired to `useLogStore`, stats recomputed on every snapshot, dashboard re-renders without navigation
+- [ ] 04-03: AI insight strings — `ask-coach` Edge Function called with last 30 approach entries, returns 2-3 Hebrew insight strings, written to `user_insights` table, displayed in dashboard
+- [ ] 04-04: Real-time updates — Supabase Realtime `channel` subscription on `approaches` table wired to `useLogStore`, stats recomputed on insert/update, dashboard re-renders without navigation
 
 ### Phase 5: Tips, Missions & Gamification
 **Goal**: Users can browse a Hebrew tips library, see their current weekly mission, mark it complete, and track their daily approach streak.
@@ -118,7 +119,7 @@ Plans:
 Plans:
 - [ ] 05-01: Static tips library — Hebrew tips data file (JSON/TS) organized by category, `FlatList` with category filter tabs, keyword search with instant local filtering (no server call)
 - [ ] 05-02: Weekly mission display — mission data structure (title, description, target count, week identifier), current mission shown in prominent card, mission rotation logic (new mission each ISO week)
-- [ ] 05-03: Mission completion + streak — mark-complete action writes to Firestore, Lottie celebration animation on completion, streak computed from approach log dates (consecutive days with entries), streak persisted in `useStatsStore`
+- [ ] 05-03: Mission completion + streak — mark-complete action writes to `user_insights` table via Supabase, Lottie celebration animation on completion, streak computed from approach log dates (consecutive days with entries), streak persisted in `useStatsStore`
 - [ ] 05-04: Streak visibility — streak badge integrated into tab bar label or persistent header component, visible on all 5 tabs without additional navigation
 
 ### Phase 6: Polish & Launch Prep

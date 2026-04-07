@@ -7,16 +7,16 @@
 
 ### Authentication
 
-- [ ] **AUTH-01**: User can sign up with phone number (Israeli format) and receive OTP via SMS
+- [ ] **AUTH-01**: User can sign up with phone number (Israeli format, +972) and receive OTP via SMS (Supabase + Twilio)
 - [ ] **AUTH-02**: User can verify OTP and complete account creation
-- [ ] **AUTH-03**: User session persists across app restarts (AsyncStorage token)
+- [ ] **AUTH-03**: User session persists across app restarts (Supabase JWT in expo-secure-store)
 - [ ] **AUTH-04**: User can sign out
 
 ### Chat — AI Coach
 
 - [ ] **CHAT-01**: User can send a Hebrew text message to the AI coach
-- [ ] **CHAT-02**: AI responds in Hebrew using the Gash persona (claude-haiku-4-5-20251001 via Cloud Function)
-- [ ] **CHAT-03**: Chat history is persisted in Firestore and loaded on screen open
+- [ ] **CHAT-02**: AI responds in Hebrew using the Gash persona (claude-haiku-4-5-20251001 via Supabase Edge Function)
+- [ ] **CHAT-03**: Chat history is persisted in Supabase (`chat_messages` table) and loaded on screen open
 - [ ] **CHAT-04**: User can copy any AI response to clipboard
 - [ ] **CHAT-05**: Conversation includes the last N messages as context window (sliding window, no vector DB)
 - [ ] **CHAT-06**: AI coach has a Hebrew-language system prompt with Israeli cultural context
@@ -60,7 +60,7 @@
 ### App Foundation
 
 - [ ] **FNDN-01**: App uses forced RTL (Hebrew right-to-left) throughout all screens
-- [ ] **FNDN-02**: App is installable on iOS and Android via EAS Build (development build)
+- [ ] **FNDN-02**: App runs in Expo Go on iOS and Android (no EAS dev build required for development)
 - [ ] **FNDN-03**: Tab navigation with 5 tabs: Coach, Log, Journal, Dashboard, Tips
 - [ ] **FNDN-04**: All text, labels, and UI copy is in Hebrew
 
@@ -167,4 +167,4 @@
 
 ---
 *Requirements defined: 2026-04-07*
-*Last updated: 2026-04-07 — AUTH-* moved from Phase 1 to Phase 2 (auth ships with chat, both require EAS dev build)*
+*Last updated: 2026-04-07 — Stack updated: Firebase → Supabase; FNDN-02 updated (Expo Go, no EAS dev build); AUTH/CHAT updated to Supabase*

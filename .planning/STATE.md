@@ -42,11 +42,12 @@ Progress: [░░░░░░░░░░] 0%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- Roadmap: EAS development build mandatory from day 1 — Expo Go cannot be used for this app
-- Roadmap: Auth (phone OTP) moves to Phase 2 alongside chat — auth and chat share the same dev build requirement and can be planned together
-- Roadmap: Cloud Functions deployed to `europe-west1` only — closest Firebase region to Israeli users
-- Roadmap: Model ID locked to `claude-haiku-4-5-20251001` — no `claude-3-5-*` references permitted anywhere in codebase
-- Roadmap: No streaming from Firebase to React Native — use full response + client-side typewriter animation
+- Stack: Firebase → Supabase (PostgreSQL + Auth + Edge Functions) — Expo Go compatible, no EAS dev build required
+- Stack: No separate Node.js server — Supabase Edge Functions handle Claude API calls (keeps API key server-side)
+- Auth: Supabase Auth phone OTP via Twilio — configured in Supabase Dashboard, not in code
+- Auth: Phone OTP in Phase 2 alongside chat — both share Supabase client setup from Phase 1
+- Model ID locked to `claude-haiku-4-5-20251001` — no `claude-3-5-*` references permitted anywhere in codebase
+- No streaming from Edge Function to React Native — use full response + client-side typewriter animation
 
 ### Pending Todos
 
@@ -54,11 +55,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 1: `google-services.json` and `GoogleService-Info.plist` require a Firebase project to exist before Phase 1 plan 01-01 can complete. Create the Firebase project before starting Phase 1.
-- Phase 2: Israeli SMS delivery for OTP requires phone auth enabled in Firebase Console with correct SHA fingerprints registered. Missing fingerprints → `missing-client-identifier` error at runtime.
+- Phase 1: Supabase project must be created and `.env` vars set before plan 01-01 can complete. Create Supabase project at supabase.com before starting Phase 1.
+- Phase 2: Twilio must be configured in Supabase Dashboard (Auth → Phone) before phone OTP works. Supabase free tier does not include SMS — requires Twilio account with Israeli number support.
 
 ## Session Continuity
 
 Last session: 2026-04-07
-Stopped at: Roadmap and STATE.md created. REQUIREMENTS.md traceability updated (AUTH-* moved to Phase 2).
+Stopped at: Stack updated — Firebase → Supabase. All planning docs updated. Ready for Phase 1.
 Resume file: None

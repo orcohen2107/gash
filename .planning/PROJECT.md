@@ -21,7 +21,7 @@ The AI coach that learns your patterns and tells you exactly what works for *you
 - [ ] Journal/history view with filters (type, date range, success) and location search
 - [ ] Dashboard with 4 key metrics (total approaches, success rate, avg chemistry, top approach type) + 3 charts
 - [ ] Static Tips & Missions library with weekly mission display and completion tracking
-- [ ] Phone + OTP authentication (Firebase Auth)
+- [ ] Phone + OTP authentication (Supabase Auth + Twilio)
 - [ ] iOS + Android via Expo (single codebase)
 - [ ] Full RTL (right-to-left) UI in Hebrew
 - [ ] AI insight strings generated from user's logged data
@@ -47,10 +47,11 @@ The AI coach that learns your patterns and tells you exactly what works for *you
 
 ## Constraints
 
-- **Tech Stack**: React Native (Expo) for iOS + Android — no Flutter, no web-only
+- **Tech Stack**: React Native (Expo) for iOS + Android — Expo Go compatible, no native SDKs
 - **AI**: Claude API (Anthropic) — Hebrew support, persona flexibility, no GPT-4 for MVP
-- **Database**: Firebase Firestore — chosen for speed-to-MVP; no PostgreSQL for v1
-- **Auth**: Firebase Auth phone OTP — Israeli phone numbers, no email/password for v1
+- **Database**: Supabase PostgreSQL — no Firebase, pure HTTP client via `@supabase/supabase-js`
+- **Auth**: Supabase Auth phone OTP (Twilio) — Israeli phone numbers, no email/password for v1
+- **Claude API**: Called via Supabase Edge Function — API key stays server-side
 - **RTL**: All UI components must support right-to-left Hebrew layout
 - **Performance**: AI chat responses must be < 2 seconds; optimize for Israeli mobile networks
 - **Privacy**: All data encrypted in transit and at rest; user can delete all data on request
@@ -60,10 +61,10 @@ The AI coach that learns your patterns and tells you exactly what works for *you
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | React Native (Expo) over Flutter | Team familiarity, faster MVP, JS/TS ecosystem | — Pending |
-| Firebase Firestore over PostgreSQL | No separate backend infra to manage for MVP | — Pending |
+| Supabase over Firebase | PostgreSQL > Firestore for queries; pure JS SDK works in Expo Go; no native builds required | ✓ Decided |
+| Supabase Edge Functions over Node.js server | No infra to manage; keeps Claude API key server-side; deploys with Supabase CLI | ✓ Decided |
 | Claude API over GPT-4 | Superior Hebrew support, matching persona to Anthropic's guidelines | — Pending |
 | Phone OTP over email auth | Israeli users prefer SMS, no email verification friction | — Pending |
-| Firebase Cloud Functions over separate Node.js server | Serverless = zero infra cost at low scale | — Pending |
 
 ## Evolution
 
@@ -83,4 +84,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-07 after initialization*
+*Last updated: 2026-04-07 — stack updated: Firebase → Supabase, no EAS dev build required*
