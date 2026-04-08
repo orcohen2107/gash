@@ -37,8 +37,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md — Supabase project setup: schema migrations (4 tables + RLS + indexes), .env wired
 - [x] 01-02-PLAN.md — RTL boot config: useSettingsStore with rtlInitialized flag, I18nManager.forceRTL in root layout
-- [ ] 01-03-PLAN.md — Expo Router v4 navigation shell: 5-tab layout Hebrew labels RTL order, placeholder screens, lib/supabase.ts, types/index.ts
-- [ ] 01-04-PLAN.md — Zustand stores scaffold: 4 remaining stores (auth/chat/log/stats) with persist, Jest infrastructure
+- [x] 01-03-PLAN.md — Expo Router v4 navigation shell: 5-tab layout Hebrew labels RTL order, placeholder screens, lib/supabase.ts, types/index.ts
+- [x] 01-04-PLAN.md — Zustand stores scaffold: 4 remaining stores (auth/chat/log/stats) with persist, Jest infrastructure
 - [ ] 01-05-PLAN.md — Edge Function scaffold: ask-coach Deno function deployed, lib/claude.ts client stub, end-to-end verified
 
 ### Phase 2: Auth & AI Coach
