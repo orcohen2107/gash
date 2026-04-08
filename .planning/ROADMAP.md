@@ -32,15 +32,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Calling the `ask-coach` Supabase Edge Function from the app returns a hardcoded response without error (pipeline verified end-to-end)
   5. Zustand stores (`useAuthStore`, `useChatStore`, `useLogStore`, `useStatsStore`, `useSettingsStore`) are initialized with AsyncStorage persistence and importable from any screen
   6. Supabase schema is migrated: `users`, `approaches`, `chat_messages`, `user_insights` tables with RLS policies
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 5 plans
 
 Plans:
-- [ ] 01-01: Supabase project setup — create Supabase project, run schema migrations (`users`, `approaches`, `chat_messages`, `user_insights`), RLS policies for user-owned data, `SUPABASE_URL` + `SUPABASE_ANON_KEY` in `.env`, Supabase CLI configured
-- [ ] 01-02: RTL boot config — `I18nManager.forceRTL(true)` + `allowRTL(true)` in root `_layout.tsx`, one-time reload guard in `useSettingsStore`, verified on physical device via Expo Go
-- [ ] 01-03: Expo Router v3 navigation shell — 5-tab layout with Hebrew labels, placeholder screens for all 5 tabs, tab array ordered for RTL visual layout (right to left: יומן, לוח, +, שליחויות, צ'אט)
-- [ ] 01-04: Zustand stores scaffold — all 5 stores defined with TypeScript interfaces, `persist` middleware wired to AsyncStorage, `expo-secure-store` adapter for auth tokens
-- [ ] 01-05: Supabase Edge Function scaffold — `supabase/functions/ask-coach/index.ts` with Deno, hardcoded Hebrew response, `CLAUDE_API_KEY` in Supabase secrets, `supabase functions serve` for local dev, end-to-end call verified from app
+- [ ] 01-01-PLAN.md — Supabase project setup: schema migrations (4 tables + RLS + indexes), .env wired
+- [ ] 01-02-PLAN.md — RTL boot config: useSettingsStore with rtlInitialized flag, I18nManager.forceRTL in root layout
+- [ ] 01-03-PLAN.md — Expo Router v4 navigation shell: 5-tab layout Hebrew labels RTL order, placeholder screens, lib/supabase.ts, types/index.ts
+- [ ] 01-04-PLAN.md — Zustand stores scaffold: 4 remaining stores (auth/chat/log/stats) with persist, Jest infrastructure
+- [ ] 01-05-PLAN.md — Edge Function scaffold: ask-coach Deno function deployed, lib/claude.ts client stub, end-to-end verified
 
 ### Phase 2: Auth & AI Coach
 **Goal**: Users can sign in with an Israeli phone number, send Hebrew messages to the Gash AI persona, and have their conversation history persist across sessions.
