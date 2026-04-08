@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 01-foundation-01-01-PLAN.md — schema migration ready, awaiting npx supabase db push
-last_updated: "2026-04-08T01:13:41.966Z"
+stopped_at: Completed 01-foundation-01-02-PLAN.md — RTL boot config ready, useSettingsStore and app/_layout.tsx created
+last_updated: "2026-04-08T01:21:46.836Z"
 last_activity: 2026-04-08
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-04-07)
 ## Current Position
 
 Phase: 01 (foundation) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-04-08
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01-foundation P01 | 2 | 2 tasks | 4 files |
+| Phase 01-foundation P02 | 5 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,8 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: RLS policies replace manual user_id filtering — all queries automatically scoped via auth.uid()
 - [Phase 01-foundation]: Migration SQL committed to repo — schema is version-controlled and repeatable via npx supabase db push
 - [Phase 01-foundation]: approach_type and follow_up_type as PostgreSQL enums — valid values enforced at DB level
+- [Phase 01-foundation]: Updates.reloadAsync() wrapped in .catch() — Expo Go throws ERR_UPDATES_DISABLED in dev mode, catch prevents crash
+- [Phase 01-foundation]: useSettingsStore partialize: only persists rtlInitialized boolean, not functions — minimal storage payload
 
 ### Pending Todos
 
@@ -82,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-08T01:13:41.964Z
-Stopped at: Completed 01-foundation-01-01-PLAN.md — schema migration ready, awaiting npx supabase db push
+Last session: 2026-04-08T01:21:46.834Z
+Stopped at: Completed 01-foundation-01-02-PLAN.md — RTL boot config ready, useSettingsStore and app/_layout.tsx created
 Resume file: None

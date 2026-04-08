@@ -62,7 +62,7 @@
 - [x] **FNDN-01**: App uses forced RTL (Hebrew right-to-left) throughout all screens
 - [x] **FNDN-02**: App runs in Expo Go on iOS and Android (no EAS dev build required for development)
 - [ ] **FNDN-03**: Tab navigation with 5 tabs: Coach, Log, Journal, Dashboard, Tips
-- [ ] **FNDN-04**: All text, labels, and UI copy is in Hebrew
+- [x] **FNDN-04**: All text, labels, and UI copy is in Hebrew
 
 ---
 
@@ -124,7 +124,7 @@
 | FNDN-01 | Phase 1 | Complete |
 | FNDN-02 | Phase 1 | Complete |
 | FNDN-03 | Phase 1 | Pending |
-| FNDN-04 | Phase 1 | Pending |
+| FNDN-04 | Phase 1 | Complete |
 | AUTH-01 | Phase 2 | Pending |
 | AUTH-02 | Phase 2 | Pending |
 | AUTH-03 | Phase 2 | Pending |
