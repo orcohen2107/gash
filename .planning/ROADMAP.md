@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 5 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Supabase project setup: schema migrations (4 tables + RLS + indexes), .env wired
+- [x] 01-01-PLAN.md — Supabase project setup: schema migrations (4 tables + RLS + indexes), .env wired
 - [ ] 01-02-PLAN.md — RTL boot config: useSettingsStore with rtlInitialized flag, I18nManager.forceRTL in root layout
 - [ ] 01-03-PLAN.md — Expo Router v4 navigation shell: 5-tab layout Hebrew labels RTL order, placeholder screens, lib/supabase.ts, types/index.ts
 - [ ] 01-04-PLAN.md — Zustand stores scaffold: 4 remaining stores (auth/chat/log/stats) with persist, Jest infrastructure
@@ -147,7 +147,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/5 | Not started | - |
+| 1. Foundation | 1/5 | In Progress|  |
 | 2. Auth & AI Coach | 0/5 | Not started | - |
 | 3. Approach Tracker & Journal | 0/4 | Not started | - |
 | 4. Dashboard & Analytics | 0/4 | Not started | - |

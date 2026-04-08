@@ -1,3 +1,19 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: executing
+stopped_at: Completed 01-foundation-01-01-PLAN.md — schema migration ready, awaiting npx supabase db push
+last_updated: "2026-04-08T01:13:41.966Z"
+last_activity: 2026-04-08
+progress:
+  total_phases: 6
+  completed_phases: 0
+  total_plans: 5
+  completed_plans: 1
+  percent: 0
+---
+
 # Project State
 
 ## Project Reference
@@ -5,20 +21,21 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** The AI coach that learns your patterns and tells you exactly what works for you — not generic advice.
-**Current focus:** Phase 1 — Foundation
+**Current focus:** Phase 01 — foundation
 
 ## Current Position
 
-Phase: 1 of 6 (Foundation)
-Plan: 0 of 5 in current phase
-Status: Ready to plan
-Last activity: 2026-04-07 — Roadmap created, STATE.md initialized
+Phase: 01 (foundation) — EXECUTING
+Plan: 2 of 5
+Status: Ready to execute
+Last activity: 2026-04-08
 
 Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0
 - Average duration: —
 - Total execution time: 0 hours
@@ -30,10 +47,12 @@ Progress: [░░░░░░░░░░] 0%
 | - | - | - | - |
 
 **Recent Trend:**
+
 - Last 5 plans: —
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 01-foundation P01 | 2 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -48,6 +67,9 @@ Recent decisions affecting current work:
 - Auth: Phone OTP in Phase 2 alongside chat — both share Supabase client setup from Phase 1
 - Model ID locked to `claude-haiku-4-5-20251001` — no `claude-3-5-*` references permitted anywhere in codebase
 - No streaming from Edge Function to React Native — use full response + client-side typewriter animation
+- [Phase 01-foundation]: RLS policies replace manual user_id filtering — all queries automatically scoped via auth.uid()
+- [Phase 01-foundation]: Migration SQL committed to repo — schema is version-controlled and repeatable via npx supabase db push
+- [Phase 01-foundation]: approach_type and follow_up_type as PostgreSQL enums — valid values enforced at DB level
 
 ### Pending Todos
 
@@ -60,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-07
-Stopped at: Stack updated — Firebase → Supabase. All planning docs updated. Ready for Phase 1.
+Last session: 2026-04-08T01:13:41.964Z
+Stopped at: Completed 01-foundation-01-01-PLAN.md — schema migration ready, awaiting npx supabase db push
 Resume file: None
