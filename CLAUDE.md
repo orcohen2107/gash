@@ -12,12 +12,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Stack
 
-- **Mobile**: React Native (Expo) — Expo Go compatible, no EAS dev build needed during development
-- **Database + Auth**: Supabase (PostgreSQL + Phone OTP via Twilio + Edge Functions)
-- **AI**: Claude API — model `claude-haiku-4-5-20251001` only, called via Supabase Edge Function
-- **State**: Zustand + AsyncStorage persist (one store per domain)
-- **Navigation**: Expo Router v3 (file-based routing)
-- **Forms**: react-hook-form + zod
+- **Monorepo**: Nx + npm workspaces — `apps/mobile`, `apps/server`, `libs/*`
+- **Mobile**: React Native (Expo) at `apps/mobile/` — Expo Go compatible, no EAS dev build needed
+- **Server**: Next.js at `apps/server/` — deployed to Vercel. Holds all AI agents + Supabase data calls
+- **Database + Auth**: Supabase (PostgreSQL + Phone OTP via Twilio). Auth direct from mobile. Data via server.
+- **AI**: Claude API — model `claude-haiku-4-5-20251001` only, called from `apps/server/` only (never from mobile)
+- **Shared libs**: `@gash/types`, `@gash/schemas` (Zod), `@gash/constants`, `@gash/api-client`
+- **State**: Zustand + AsyncStorage persist. Stores call `@gash/api-client` — never Supabase directly for data
+- **Navigation**: Expo Router v4 (file-based routing)
+- **Forms**: react-hook-form + zod (schemas from `@gash/schemas`)
 - **Language**: TypeScript strict throughout
 
 ---
@@ -25,18 +28,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Folder Structure
 
 ```
-app/                        ← Expo Router pages
-  _layout.tsx               ← Root layout: RTL boot, auth guard, Supabase session
-  (tabs)/
-    _layout.tsx             ← Tab bar definition (5 tabs, Hebrew labels, RTL order)
-    coach.tsx               ← AI Chat screen
-    log.tsx                 ← Quick log entry (opens bottom sheet)
-    journal.tsx             ← Approach history list + filters
-    dashboard.tsx           ← Analytics + charts
-    tips.tsx                ← Tips library + weekly mission
-  auth/
-    index.tsx               ← Phone number input screen
-    verify.tsx              ← OTP verification screen
+apps/
+  mobile/                     ← Expo app (Expo Go compatible)
+    app/                      ← Expo Router pages
+      _layout.tsx             ← Root layout: RTL boot, auth guard, Supabase session
+      (tabs)/
+        _layout.tsx           ← Tab bar definition (5 tabs, Hebrew labels, RTL order)
+        coach.tsx             ← AI Chat screen
+        log.tsx               ← Quick log entry (opens bottom sheet)
+        journal.tsx           ← Approach history list + filters
+        dashboard.tsx         ← Analytics + charts
+        tips.tsx              ← Tips library + weekly mission
+      auth/
+        index.tsx             ← Phone number input screen
+        verify.tsx            ← OTP verification screen
+    lib/
+      supabase.ts             ← Supabase client — auth only (OTP + session)
+      server.ts               ← SERVER_URL + getAuthHeaders() for api-client
+
+  server/                     ← Next.js (Vercel)
+    app/api/
+      coach/route.ts          ← POST /api/coach (coach/boost/debrief routing)
+      coach/onboarding/       ← POST /api/coach/onboarding
+      coach/reply/            ← POST /api/coach/reply (sonnet)
+      coach/opener/           ← POST /api/coach/opener
+      approaches/route.ts     ← GET/POST /api/approaches
+      approaches/[id]/        ← PUT/DELETE /api/approaches/:id
+      insights/route.ts       ← GET /api/insights
+    lib/
+      auth.ts                 ← verifyAuth(request) → User | null
+      supabase.ts             ← supabaseAdmin (service role) + createUserClient
+      claude.ts               ← callClaude / callClaudeJSON (Anthropic SDK)
+      agents/                 ← router.ts + 8 agent files
+
+libs/
+  types/src/index.ts          ← @gash/types — all TS interfaces + API request/response types
+  schemas/src/index.ts        ← @gash/schemas — Zod schemas (shared mobile forms ↔ server validation)
+  constants/src/index.ts      ← @gash/constants — Hebrew labels, tips, missions, enums
+  api-client/src/index.ts     ← @gash/api-client — typed HTTP client (mobile → server)
 
 components/
   chat/                     ← ChatBubble, TypingIndicator, ChatInput
@@ -175,16 +204,19 @@ user_insights  (user_id, weekly_mission, missions_completed, streak, last_analys
 ## Critical — Do Not
 
 - Do not add Firebase packages (`@react-native-firebase/*`, `firebase`)
-- Do not call Claude API directly from client code — always go through `ask-coach` Edge Function
+- Do not call Claude API from mobile — always through `apps/server/` Next.js routes
+- Do not call Supabase for data from mobile — use `@gash/api-client` only. Auth is the only exception.
+- Do not use `SUPABASE_SERVICE_ROLE_KEY` or `CLAUDE_API_KEY` in `apps/mobile/` — server only
 - Do not use directional style props (`paddingLeft`, `marginRight`, `left: 0`)
 - Do not write UI copy in English — everything is Hebrew
 - Do not use `StyleSheet.create` with hardcoded `textAlign: 'left'` — use `'right'` or `'auto'`
+- Do not add code to `supabase/functions/` — Edge Functions are deleted and replaced by `apps/server/`
 
 ---
 
-## AI Agents (Edge Function routing)
+## AI Agents (Next.js server routing)
 
-Edge Function אחת: `ask-coach`. ניתוב לפי שדה `type` בבקשה.
+All agents live in `apps/server/lib/agents/`. Router at `apps/server/lib/agents/router.ts` detects intent before calling Claude.
 
 | type | מופעל מתי | מודל | מחזיר |
 |------|-----------|------|--------|

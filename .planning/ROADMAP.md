@@ -2,7 +2,12 @@
 
 ## Overview
 
-Six phases take Gash from an empty Expo project to an App Store–ready Hebrew AI dating coach. Phase 1 establishes the foundation (Supabase project + schema, RTL boot config, Expo Router navigation shell, Zustand stores, Supabase Edge Function scaffold) before any feature code is written. No EAS dev build required — Expo Go works throughout development. Phase 2 adds phone auth and the core AI chat loop. Phases 3–5 deliver the tracker, journal, dashboard, and tips. Phase 6 hardens and ships.
+Seven phases take Gash from an empty Expo project to an App Store–ready Hebrew AI dating coach. Phase 1 establishes the foundation. **Phase 1.5 migrates to an Nx monorepo** with a Next.js server on Vercel — all Claude API calls and Supabase data operations move server-side; the mobile app uses a typed `@gash/api-client` to talk to the server. Phase 2 adds phone auth and the core AI chat loop. Phases 3–5 deliver the tracker, journal, dashboard, and tips. Phase 6 hardens and ships.
+
+**Architecture (from Phase 1.5 onward):**
+- `apps/mobile/` — Expo app (Expo Go compatible). Auth direct to Supabase. All data/AI via Next.js server.
+- `apps/server/` — Next.js on Vercel. Holds all 8 AI agents, Supabase service role client, Claude API key.
+- `libs/types/`, `libs/schemas/`, `libs/constants/`, `libs/api-client/` — shared code.
 
 ## Phases
 
@@ -13,7 +18,8 @@ Six phases take Gash from an empty Expo project to an App Store–ready Hebrew A
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Foundation** - Supabase project + schema, RTL boot config, Expo Router shell, Zustand stores, Edge Function scaffold (Expo Go compatible)
-- [ ] **Phase 2: Auth & AI Coach** - Phone OTP auth (Supabase+Twilio), Claude API via Edge Function, custom FlatList chat UI, Supabase message persistence
+- [ ] **Phase 1.5: Nx Monorepo Migration (INSERTED)** - Nx workspace, apps/mobile + apps/server (Next.js/Vercel), libs (types/schemas/constants/api-client), all AI agents moved server-side, Edge Functions deleted
+- [ ] **Phase 2: Auth & AI Coach** - Phone OTP auth (Supabase+Twilio), Claude API via Next.js server, custom FlatList chat UI, Supabase message persistence via server
 - [ ] **Phase 3: Approach Tracker & Journal** - Bottom sheet log form, Firestore CRUD, journal list with filters and search
 - [ ] **Phase 4: Dashboard & Analytics** - Metrics computation, gifted-charts visualizations, AI insight strings, real-time updates
 - [ ] **Phase 5: Tips, Missions & Gamification** - Static tips library, weekly mission display and completion, streak counter
@@ -41,9 +47,34 @@ Plans:
 - [x] 01-04-PLAN.md — Zustand stores scaffold: 4 remaining stores (auth/chat/log/stats) with persist, Jest infrastructure
 - [ ] 01-05-PLAN.md — Edge Function scaffold: ask-coach Deno function deployed, lib/claude.ts client stub, end-to-end verified
 
+### Phase 1.5: Nx Monorepo Migration (INSERTED)
+**Goal**: Convert the root Expo project into an Nx monorepo. `apps/mobile` (Expo), `apps/server` (Next.js on Vercel), `libs/types`, `libs/schemas`, `libs/constants`, `libs/api-client`. All AI agents and Supabase data calls move to the server. Edge Functions deleted.
+**Depends on**: Phase 1
+**Requirements**: ARCH-01
+**Success Criteria** (what must be TRUE):
+  1. `npx nx run mobile:start` launches Expo Go — identical to before
+  2. `npx nx run server:dev` starts Next.js locally on port 3001
+  3. Mobile sends chat message → Next.js → Claude → Hebrew reply displayed
+  4. All Zustand stores use `@gash/api-client` for data (no direct Supabase data calls from mobile)
+  5. `supabase/functions/` deleted
+  6. Next.js server deployed to Vercel, mobile `.env` points to production URL
+**Plans**: 5 plans
+
+Plans:
+- [ ] 01.5-01 — Nx workspace init + apps/mobile migration
+- [ ] 01.5-02 — libs scaffold: types, schemas, constants, api-client skeleton
+- [ ] 01.5-03 — apps/server: Next.js + all 8 AI agents + 7 API routes
+- [ ] 01.5-04 — libs/api-client implementation + mobile stores wiring
+- [ ] 01.5-05 — Edge Functions cleanup + Vercel deploy
+
+**Implementation plan:** `docs/superpowers/plans/2026-04-08-nx-monorepo-migration.md`
+**Design spec:** `docs/superpowers/specs/2026-04-08-nx-monorepo-migration-design.md`
+
+---
+
 ### Phase 2: Auth & AI Coach
 **Goal**: Users can sign in with an Israeli phone number, send Hebrew messages to the Gash AI persona, and have their conversation history persist across sessions.
-**Depends on**: Phase 1
+**Depends on**: Phase 1.5
 **Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05, CHAT-06
 **Success Criteria** (what must be TRUE):
   1. User can enter an Israeli phone number, receive an OTP via SMS, verify it, and land on the main app

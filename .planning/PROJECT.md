@@ -62,7 +62,10 @@ The AI coach that learns your patterns and tells you exactly what works for *you
 |----------|-----------|---------|
 | React Native (Expo) over Flutter | Team familiarity, faster MVP, JS/TS ecosystem | — Pending |
 | Supabase over Firebase | PostgreSQL > Firestore for queries; pure JS SDK works in Expo Go; no native builds required | ✓ Decided |
-| Supabase Edge Functions over Node.js server | No infra to manage; keeps Claude API key server-side; deploys with Supabase CLI | ✓ Decided |
+| Supabase Edge Functions over Node.js server | No infra to manage; keeps Claude API key server-side; deploys with Supabase CLI | ✗ Reversed in Phase 1.5 |
+| Next.js server (Vercel) over Supabase Edge Functions | TypeScript throughout, better DX, full Node.js, easy Vercel deploy, all agents in one place | ✓ Decided (Phase 1.5) |
+| Nx monorepo with npm workspaces | Shared libs (types/schemas/constants/api-client) between mobile and server; typed end-to-end; Nx caching | ✓ Decided (Phase 1.5) |
+| Auth stays direct to Supabase from mobile | Supabase anon key is public by design; SDK handles token refresh automatically; no proxy needed for OTP | ✓ Decided (Phase 1.5) |
 | Claude API over GPT-4 | Superior Hebrew support, matching persona to Anthropic's guidelines | — Pending |
 | Phone OTP over email auth | Israeli users prefer SMS, no email verification friction | — Pending |
 
