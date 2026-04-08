@@ -16,6 +16,9 @@ android/
 supabase/.branches/
 supabase/.temp/
 
+# Git worktrees
+.worktrees/
+
 # macOS
 .DS_Store
 *.DS_Store
