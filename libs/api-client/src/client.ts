@@ -14,6 +14,7 @@ import type {
   BoostRequest,
   BoostResponse,
   Approach,
+  ChatMessage,
   InsightsResponse,
 } from '@gash/types'
 
@@ -71,6 +72,7 @@ export interface ApiClient {
     opener: (req: SituationOpenerRequest) => Promise<SituationOpenerResponse>
     feedback: (req: ApproachFeedbackRequest) => Promise<ApproachFeedbackResponse>
     debrief: (req: DebriefRequest) => Promise<DebriefResponse>
+    history: () => Promise<{ messages: ChatMessage[] }>
   }
   approaches: {
     list: () => Promise<{ approaches: Approach[] }>
@@ -93,6 +95,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       opener: (req) => post(config, '/api/coach/opener', req),
       feedback: (req) => post(config, '/api/coach', req),
       debrief: (req) => post(config, '/api/coach', req),
+      history: () => get(config, '/api/coach/history'),
     },
     approaches: {
       list: () => get(config, '/api/approaches'),

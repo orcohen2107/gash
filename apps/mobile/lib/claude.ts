@@ -1,26 +1,28 @@
-// lib/claude.ts
-// Client-side stub for calling the ask-coach Edge Function.
-// NEVER call the Claude API directly from here — always go through the Edge Function.
-// Phase 2 will expand this with proper message types and error handling.
-
 import { supabase } from '@/lib/supabase'
 import type { ChatMessage } from '@/types'
 
-export interface CoachResponse {
-  text: string
+interface CoachResult {
+  success: boolean
+  content?: string
+  error?: string
 }
 
-export async function callCoach(messages: ChatMessage[]): Promise<CoachResponse> {
-  const { data, error } = await supabase.functions.invoke('ask-coach', {
-    body: {
-      type: 'coach',
-      messages,
-    },
-  })
+type ClaudeMessage = Pick<ChatMessage, 'role' | 'content'>
 
-  if (error) {
-    throw new Error(`Edge Function error: ${error.message}`)
+export async function callCoach(messages: ClaudeMessage[]): Promise<CoachResult> {
+  try {
+    const { data, error } = await supabase.functions.invoke('ask-coach', {
+      body: { messages },
+    })
+
+    if (error) throw error
+    if (!data?.content) throw new Error('תגובה ריקה מהמאמן')
+
+    return { success: true, content: data.content }
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'שגיאה לא ידועה',
+    }
   }
-
-  return data as CoachResponse
 }

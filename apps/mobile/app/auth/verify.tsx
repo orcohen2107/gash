@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { View, StyleSheet, ScrollView, SafeAreaView, Text, TouchableOpacity } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { Controller, useForm } from 'react-hook-form'
@@ -8,14 +8,23 @@ import Toast from 'react-native-toast-message'
 import { supabase } from '@/lib/supabase'
 import Input from '@/components/ui/Input'
 
-// Zod schema for OTP validation (4-6 digits)
 const otpSchema = z.object({
-  otp: z
-    .string()
-    .regex(/^\d{4,6}$/, 'קוד לא חוקי. בדוק שוב.'),
+  otp: z.string().regex(/^\d{4,6}$/, 'קוד לא חוקי. בדוק שוב.'),
 })
 
 type OtpFormData = z.infer<typeof otpSchema>
+
+const TOAST_DURATION_MS = 3000
+
+function showErrorToast(message: string) {
+  Toast.show({
+    type: 'error',
+    text1: message,
+    position: 'bottom',
+    autoHide: true,
+    visibilityTime: TOAST_DURATION_MS,
+  })
+}
 
 export default function VerifyScreen() {
   const router = useRouter()
@@ -23,117 +32,66 @@ export default function VerifyScreen() {
   const [loading, setLoading] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
 
-  const { control, handleSubmit, watch, setValue } = useForm<OtpFormData>({
+  const { control, watch, setValue } = useForm<OtpFormData>({
     resolver: zodResolver(otpSchema),
     defaultValues: { otp: '' },
   })
 
   const otpValue = watch('otp')
 
-  // Auto-submit when OTP is fully entered
-  useEffect(() => {
-    if (otpValue && otpValue.length >= 4) {
-      // Check if it's a valid complete OTP (4-6 digits)
-      if (/^\d{4,6}$/.test(otpValue)) {
-        handleSubmit(handleOtpSubmit)()
+  const submitOtp = useCallback(
+    async (otp: string) => {
+      if (!phone) {
+        showErrorToast('שגיאה: לא קיבלנו מספר טלפון')
+        return
       }
-    }
-  }, [otpValue])
 
-  const handleOtpSubmit = async (data: OtpFormData) => {
-    if (!phone) {
-      Toast.show({
-        type: 'error',
-        text1: 'שגיאה: לא קיבלנו מספר טלפון',
-        position: 'bottom',
-        autoHide: true,
-        visibilityTime: 3000,
-      })
-      return
-    }
+      setLoading(true)
 
-    setLoading(true)
-
-    try {
-      // Call Supabase Auth verifyOtp
-      const { error, data: session } = await supabase.auth.verifyOtp({
-        phone,
-        token: data.otp,
-        type: 'sms',
-      })
-
-      if (error) {
-        // Invalid OTP or network error
-        const message = error.message.includes('Invalid')
-          ? 'קוד לא נכון. בדוק שוב.'
-          : 'בעיה בחיבור. בדוק את הרשת.'
-
-        Toast.show({
-          type: 'error',
-          text1: message,
-          position: 'bottom',
-          autoHide: true,
-          visibilityTime: 3000,
+      try {
+        const { error, data: session } = await supabase.auth.verifyOtp({
+          phone,
+          token: otp,
+          type: 'sms',
         })
 
-        // Clear OTP field on error
-        setValue('otp', '')
-      } else if (session) {
-        // Success: redirect to main app
-        Toast.show({
-          type: 'success',
-          text1: 'כניסה בוצעה בהצלחה!',
-          position: 'bottom',
-          autoHide: true,
-          visibilityTime: 2000,
-        })
-
-        // Navigate to main tabs after a brief delay
-        setTimeout(() => {
+        if (error) {
+          const message = error.message.includes('Invalid')
+            ? 'קוד לא נכון. בדוק שוב.'
+            : 'בעיה בחיבור. בדוק את הרשת.'
+          showErrorToast(message)
+          setValue('otp', '')
+        } else if (session) {
           router.replace('/(tabs)/coach')
-        }, 500)
+        }
+      } catch {
+        showErrorToast('בעיה בחיבור. בדוק את הרשת.')
+      } finally {
+        setLoading(false)
       }
-    } catch (err) {
-      console.error('OTP verification error:', err)
-      Toast.show({
-        type: 'error',
-        text1: 'בעיה בחיבור. בדוק את הרשת.',
-        position: 'bottom',
-        autoHide: true,
-        visibilityTime: 3000,
-      })
-    } finally {
-      setLoading(false)
+    },
+    [phone, router, setValue]
+  )
+
+  useEffect(() => {
+    if (/^\d{4,6}$/.test(otpValue)) {
+      submitOtp(otpValue)
     }
-  }
+  }, [otpValue, submitOtp])
 
   const handleResend = async () => {
     if (!phone) {
-      Toast.show({
-        type: 'error',
-        text1: 'שגיאה: לא קיבלנו מספר טלפון',
-        position: 'bottom',
-        autoHide: true,
-        visibilityTime: 3000,
-      })
+      showErrorToast('שגיאה: לא קיבלנו מספר טלפון')
       return
     }
 
     setResendLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone,
-      })
+      const { error } = await supabase.auth.signInWithOtp({ phone })
 
       if (error) {
-        Toast.show({
-          type: 'error',
-          text1: 'בעיה בשליחה. בדוק את הרשת.',
-          position: 'bottom',
-          autoHide: true,
-          visibilityTime: 3000,
-        })
+        showErrorToast('בעיה בשליחה. בדוק את הרשת.')
       } else {
         Toast.show({
           type: 'success',
@@ -144,15 +102,8 @@ export default function VerifyScreen() {
         })
         setValue('otp', '')
       }
-    } catch (err) {
-      console.error('Resend OTP error:', err)
-      Toast.show({
-        type: 'error',
-        text1: 'בעיה בחיבור. בדוק את הרשת.',
-        position: 'bottom',
-        autoHide: true,
-        visibilityTime: 3000,
-      })
+    } catch {
+      showErrorToast('בעיה בחיבור. בדוק את הרשת.')
     } finally {
       setResendLoading(false)
     }
@@ -162,54 +113,36 @@ export default function VerifyScreen() {
     <SafeAreaView style={styles.safeContainer}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
-          {/* Title */}
           <Text style={styles.title}>אימות קוד</Text>
 
-          {/* Subtitle with phone display */}
-          <Text style={styles.subtitle}>
-            נשלחנו קוד אל {phone}
-          </Text>
+          <Text style={styles.subtitle}>נשלח קוד אל {phone}</Text>
 
-          {/* OTP Input Field */}
           <View style={styles.formSection}>
             <Controller
               control={control}
               name="otp"
-              render={({ field: { value, onChange }, fieldState: { error } }) => (
-                <>
-                  <Input
-                    placeholder="0000"
-                    value={value}
-                    onChangeText={(text) => {
-                      // Only allow digits
-                      const digitsOnly = text.replace(/[^0-9]/g, '')
-                      // Max 6 digits
-                      onChange(digitsOnly.slice(0, 6))
-                    }}
-                    keyboardType="numeric"
-                    maxLength={6}
-                    autoFocus
-                  />
-                  {error && (
-                    <Text style={styles.errorText}>{error.message}</Text>
-                  )}
-                </>
+              render={({ field: { value, onChange } }) => (
+                <Input
+                  placeholder="0000"
+                  value={value}
+                  onChangeText={(text) => {
+                    const digitsOnly = text.replace(/[^0-9]/g, '')
+                    onChange(digitsOnly.slice(0, 6))
+                  }}
+                  keyboardType="numeric"
+                  maxLength={6}
+                  autoFocus
+                  editable={!loading}
+                />
               )}
             />
           </View>
 
-          {/* Help Text */}
-          <Text style={styles.helpText}>
-            קוד התאימות הוא 4-6 ספרות
-          </Text>
+          <Text style={styles.helpText}>קוד האימות הוא 4-6 ספרות</Text>
 
-          {/* Resend Link */}
           <View style={styles.resendSection}>
             <Text style={styles.resendLabel}>לא קיבלת קוד? </Text>
-            <TouchableOpacity
-              onPress={handleResend}
-              disabled={resendLoading}
-            >
+            <TouchableOpacity onPress={handleResend} disabled={resendLoading || loading}>
               <Text style={styles.resendLink}>
                 {resendLoading ? 'שולח...' : 'שלח שוב'}
               </Text>
@@ -218,7 +151,6 @@ export default function VerifyScreen() {
         </View>
       </ScrollView>
 
-      {/* Toast container for notifications */}
       <Toast />
     </SafeAreaView>
   )
@@ -257,13 +189,6 @@ const styles = StyleSheet.create({
   formSection: {
     width: '100%',
     marginBottom: 24,
-  },
-  errorText: {
-    color: '#ff6b6b',
-    fontSize: 12,
-    marginTop: 6,
-    fontFamily: 'Inter',
-    textAlign: 'right',
   },
   helpText: {
     fontSize: 12,

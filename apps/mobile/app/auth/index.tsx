@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { View, StyleSheet, ScrollView, SafeAreaView } from 'react-native'
+import { View, StyleSheet, ScrollView, SafeAreaView, Text } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Controller, useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -8,9 +8,7 @@ import Toast from 'react-native-toast-message'
 import { supabase } from '@/lib/supabase'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
-import { Text } from 'react-native'
 
-// Zod schema for Israeli phone validation
 const phoneSchema = z.object({
   phone: z
     .string()
@@ -27,16 +25,25 @@ export default function PhoneAuthScreen() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
 
-  const { control, handleSubmit, watch } = useForm<PhoneFormData>({
+  const { control, handleSubmit } = useForm<PhoneFormData>({
     resolver: zodResolver(phoneSchema),
     defaultValues: { phone: '' },
   })
+
+  const showValidationToast = () => {
+    Toast.show({
+      type: 'error',
+      text1: 'מספר לא חוקי. תן מספר ישראלי.',
+      position: 'bottom',
+      autoHide: true,
+      visibilityTime: 3000,
+    })
+  }
 
   const handlePhoneSubmit = async (data: PhoneFormData) => {
     setLoading(true)
 
     try {
-      // Normalize phone number: if starts with 0, replace with +972
       let normalizedPhone = data.phone.replace(/\s/g, '')
       if (normalizedPhone.startsWith('0')) {
         normalizedPhone = '+972' + normalizedPhone.slice(1)
@@ -44,13 +51,11 @@ export default function PhoneAuthScreen() {
         normalizedPhone = '+972' + normalizedPhone
       }
 
-      // Call Supabase Auth signInWithOtp
       const { error } = await supabase.auth.signInWithOtp({
         phone: normalizedPhone,
       })
 
       if (error) {
-        // Network or validation error
         const message = error.message.includes('phone')
           ? 'מספר לא חוקי. תן מספר ישראלי.'
           : 'בעיה בחיבור. בדוק את הרשת.'
@@ -63,14 +68,12 @@ export default function PhoneAuthScreen() {
           visibilityTime: 3000,
         })
       } else {
-        // Success: navigate to verify screen with phone number in params
         router.push({
           pathname: '/auth/verify',
           params: { phone: normalizedPhone },
         })
       }
-    } catch (err) {
-      console.error('Phone auth error:', err)
+    } catch {
       Toast.show({
         type: 'error',
         text1: 'בעיה בחיבור. בדוק את הרשת.',
@@ -87,51 +90,38 @@ export default function PhoneAuthScreen() {
     <SafeAreaView style={styles.safeContainer}>
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
-          {/* Title */}
           <Text style={styles.title}>כניסה חדשה</Text>
 
-          {/* Subtitle */}
           <Text style={styles.subtitle}>הכנס את מספר הטלפון שלך כדי להתחיל</Text>
 
-          {/* Phone Input Field */}
           <View style={styles.formSection}>
             <Controller
               control={control}
               name="phone"
-              render={({ field: { value, onChange }, fieldState: { error } }) => (
-                <>
-                  <Input
-                    placeholder="+972 50 123 4567"
-                    value={value}
-                    onChangeText={onChange}
-                    keyboardType="phone-pad"
-                  />
-                  {error && (
-                    <Text style={styles.errorText}>{error.message}</Text>
-                  )}
-                </>
+              render={({ field: { value, onChange } }) => (
+                <Input
+                  placeholder="+972 50 123 4567"
+                  value={value}
+                  onChangeText={onChange}
+                  keyboardType="phone-pad"
+                />
               )}
             />
           </View>
 
-          {/* Submit Button */}
           <View style={styles.buttonSection}>
             <Button
               title={loading ? 'שליחה...' : 'שלח קוד'}
-              onPress={handleSubmit(handlePhoneSubmit)}
+              onPress={handleSubmit(handlePhoneSubmit, showValidationToast)}
               disabled={loading}
               loading={loading}
             />
           </View>
 
-          {/* Help Text */}
-          <Text style={styles.helpText}>
-            אנחנו נשלח קוד אימות ל-SMS שלך
-          </Text>
+          <Text style={styles.helpText}>אנחנו נשלח קוד אימות ל-SMS שלך</Text>
         </View>
       </ScrollView>
 
-      {/* Toast container for notifications */}
       <Toast />
     </SafeAreaView>
   )
@@ -174,13 +164,6 @@ const styles = StyleSheet.create({
   buttonSection: {
     width: '100%',
     marginBottom: 24,
-  },
-  errorText: {
-    color: '#ff6b6b',
-    fontSize: 12,
-    marginTop: 6,
-    fontFamily: 'Inter',
-    textAlign: 'right',
   },
   helpText: {
     fontSize: 12,
