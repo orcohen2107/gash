@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createApiClient } from '@gash/api-client'
 import { SERVER_URL, getAuthHeaders, handleAuthError } from '@/lib/server'
+import { cache, CACHE_PRESETS } from '@/lib/cache'
 import { useLogStore } from './useLogStore'
 import { useStatsStore } from './useStatsStore'
 import { sendLocalNotification } from '@/lib/notifications'
@@ -53,6 +54,16 @@ export const useBadgesStore = create<BadgesStore>()(
       fetchMission: async () => {
         set({ isLoadingMission: true })
         try {
+          // Check cache first (stale-while-revalidate pattern)
+          const cachedWithMeta = await cache.getWithMetadata<Mission>('mission')
+
+          if (cachedWithMeta.data && !cachedWithMeta.isExpired) {
+            // Return fresh cached data
+            set({ isLoadingMission: false })
+            return cachedWithMeta.data
+          }
+
+          // Fetch fresh from server
           const response = await fetch(`${SERVER_URL}/api/coach/mission`, {
             method: 'POST',
             headers: await getAuthHeaders(),
@@ -60,12 +71,24 @@ export const useBadgesStore = create<BadgesStore>()(
           })
           const mission = (await response.json()) as Mission
           set({ mission, isLoadingMission: false })
-          // Trigger notification for new mission
+
+          // Cache for 24 hours (mission updates daily)
+          await cache.set('mission', mission, CACHE_PRESETS.VERY_LONG)
+
+          // Trigger notification for new mission (only on fresh fetch)
           sendLocalNotification(`📋 משימה שבועית חדשה`, `${mission.title}`)
           return mission
         } catch (err) {
           console.error('Failed to fetch mission:', err)
           set({ isLoadingMission: false })
+
+          // Try to return stale cache if available
+          const cachedWithMeta = await cache.getWithMetadata<Mission>('mission')
+          if (cachedWithMeta.data) {
+            console.warn('Returning stale cached mission due to fetch error')
+            return cachedWithMeta.data
+          }
+
           return null
         }
       },

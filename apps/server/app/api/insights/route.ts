@@ -2,23 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuth } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { runInsightsAgent } from '@/lib/agents/insights-agent'
+import { sendPushNotificationToUser } from '@/lib/pushNotifications'
 import { createRateLimitResponse } from '@/lib/rateLimit'
 import { handleApiError } from '@/lib/apiError'
 
 export async function GET(request: NextRequest) {
-  const { userId } = await verifyAuth(request)
+  const auth = await verifyAuth(request)
+  if (!auth) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
+
+  const userId = auth.userId
 
   // Rate limit: 5 requests per minute for insights (since it calls Claude)
   const rateLimitResponse = createRateLimitResponse(`insights:${userId}`, {
     limit: 5,
   })
   if (rateLimitResponse) return rateLimitResponse
-  if (!userId) {
-    return NextResponse.json(
-      { error: 'Unauthorized' },
-      { status: 401 }
-    )
-  }
 
   try {
     // Check if we have fresh insights (< 24h old)
@@ -59,6 +62,22 @@ export async function GET(request: NextRequest) {
           weekly_mission: result.weeklyMission,
           last_analysis_at: now.toISOString(),
         })
+    }
+
+    // Send push notification when new insights are generated
+    if (result.weeklyMission?.title) {
+      await sendPushNotificationToUser({
+        userId,
+        title: 'התובנות שלך מוכנות 📊',
+        body: `משימה חדשה: ${result.weeklyMission.title}`,
+        notificationType: 'insights_ready',
+        data: {
+          screen: '/(tabs)/dashboard',
+        },
+      }).catch((err) => {
+        console.error('Failed to send insights notification:', err)
+        // Non-blocking — don't fail if push notification fails
+      })
     }
 
     return NextResponse.json(result)

@@ -1,7 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react'
 import { View, Text, StyleSheet, FlatList, Pressable, TextInput } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useLogStore } from '@/stores/useLogStore'
+import { analytics } from '@/lib/analytics'
 import type { Approach } from '@gash/types'
 import JournalListItem from '@/components/journal/JournalListItem'
 import ApproachDetailScreen from '@/components/journal/ApproachDetailScreen'
@@ -17,6 +19,13 @@ export default function JournalScreen() {
   const { approaches } = useLogStore()
   const [selectedApproach, setSelectedApproach] = useState<Approach | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+
+  // Track screen view
+  useFocusEffect(
+    useCallback(() => {
+      analytics.trackScreenView('journal')
+    }, [])
+  )
 
   // Filter state
   const [selectedType, setSelectedType] = useState<string | null>(null)

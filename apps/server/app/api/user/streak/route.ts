@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { verifyAuth } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
+import { sendPushNotificationToUser } from '@/lib/pushNotifications'
 import { handleApiError } from '@/lib/apiError'
 
 const StreakRequestSchema = z.object({
@@ -10,10 +11,12 @@ const StreakRequestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await verifyAuth(request)
-    if (!userId) {
+    const auth = await verifyAuth(request)
+    if (!auth) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const userId = auth.userId
 
     const body = await request.json()
     const validated = StreakRequestSchema.parse(body)
@@ -73,6 +76,24 @@ export async function POST(request: NextRequest) {
           streak: newStreak,
           last_approach_date: today,
         })
+
+      // Send push notification on milestone streaks (7, 14, 21, etc.)
+      if (newStreak > currentStreak && newStreak > 0 && newStreak % 7 === 0) {
+        const milestoneMessage = `🔥 רצף שבועי! ${newStreak} ימים רצופים — כל הכבוד!`
+        await sendPushNotificationToUser({
+          userId,
+          title: 'הישג חדש!',
+          body: milestoneMessage,
+          notificationType: 'streak_milestone',
+          data: {
+            screen: '/(tabs)/dashboard',
+            streak: newStreak,
+          },
+        }).catch((err) => {
+          console.error('Failed to send streak milestone notification:', err)
+          // Non-blocking — don't fail the API if push notification fails
+        })
+      }
 
       return NextResponse.json({
         streak: newStreak,

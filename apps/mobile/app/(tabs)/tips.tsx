@@ -1,5 +1,6 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect, useCallback } from 'react'
 import { View, ScrollView, StyleSheet, Text } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { TIPS } from '@gash/constants'
 import type { Tip } from '@gash/constants'
 import TipCard from '@/components/tips/TipCard'
@@ -7,11 +8,19 @@ import CategoryFilter from '@/components/tips/CategoryFilter'
 import SearchInput from '@/components/tips/SearchInput'
 import BadgeGallery from '@/components/badges/BadgeGallery'
 import { useBadgesStore } from '@/stores/useBadgesStore'
+import { analytics } from '@/lib/analytics'
 
 export default function TipsScreen() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<Tip['category'] | 'all'>('all')
   const checkAndUnlockBadges = useBadgesStore((state) => state.checkAndUnlockBadges)
+
+  // Track screen view
+  useFocusEffect(
+    useCallback(() => {
+      analytics.trackScreenView('tips')
+    }, [])
+  )
 
   useEffect(() => {
     checkAndUnlockBadges()
