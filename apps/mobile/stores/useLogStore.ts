@@ -61,6 +61,18 @@ export const useLogStore = create<LogStore>()(
 
           // Show AI feedback
           get().showFeedback(feedback)
+
+          // Increment streak after successful approach creation
+          try {
+            const { useStatsStore } = await import('./useStatsStore')
+            const streakResult = await useStatsStore.getState().incrementStreak()
+            Toast.show({
+              type: 'success',
+              text1: streakResult.message,
+            })
+          } catch (err) {
+            console.error('Failed to increment streak:', err)
+          }
         } catch (err) {
           console.error('Failed to add approach:', err)
           // Remove from array on error

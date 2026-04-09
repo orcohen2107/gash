@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { View, ScrollView, StyleSheet, Text } from 'react-native'
+import MissionCard from '@/components/dashboard/MissionCard'
+import { useBadgesStore } from '@/stores/useBadgesStore'
 import { useStatsStore } from '@/stores/useStatsStore'
 import { useLogStore } from '@/stores/useLogStore'
 import KPICard from '@/components/dashboard/KPICard'
@@ -15,17 +17,27 @@ const APPROACH_TYPE_LABELS: Record<string, string> = {
 }
 
 export default function DashboardScreen() {
+  const mission = useBadgesStore((state) => state.mission)
+  const fetchMission = useBadgesStore((state) => state.fetchMission)
   const { totalApproaches, successRate, avgChemistry, topApproachType } = useStatsStore()
   const { approaches } = useLogStore()
+  const [missionLoading, setMissionLoading] = useState(false)
   const [insight, setInsight] = useState<string>('')
   const [loadingInsight, setLoadingInsight] = useState(false)
 
-  // Load insight on mount and subscribe to changes
+  // Load mission and insight on mount and subscribe to changes
   useEffect(() => {
+    const loadMission = async () => {
+      setMissionLoading(true)
+      await fetchMission()
+      setMissionLoading(false)
+    }
+    loadMission()
+
     loadInsight()
     const unsubscribe = useLogStore.getState().subscribeToChanges()
     return unsubscribe
-  }, [])
+  }, [fetchMission])
 
   const loadInsight = async () => {
     setLoadingInsight(true)
@@ -59,6 +71,9 @@ export default function DashboardScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Mission Card */}
+        <MissionCard mission={mission} loading={missionLoading} />
+
         {/* KPI Cards Grid */}
         <View style={styles.kpiGrid}>
           <KPICard label="סה״כ גישות" value={totalApproaches} icon="📊" />
