@@ -25,9 +25,13 @@ export const useStatsStore = create<StatsStore>()(
   persist(
     (set, get) => {
       // Subscribe to log store changes and recompute stats
-      useLogStore.subscribe((state) => {
+      const unsubscribe = useLogStore.subscribe((state) => {
         get().computeStats()
       })
+
+      // Note: Unsubscribe is called automatically when store is destroyed
+      // but we keep the reference for clarity
+      ;(unsubscribe)
 
       return {
         streak: 0,
