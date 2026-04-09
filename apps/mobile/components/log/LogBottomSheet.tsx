@@ -8,9 +8,10 @@ import { BottomSheetView, useBottomSheetModal } from '@gorhom/bottom-sheet'
 import Toast from 'react-native-toast-message'
 import { z } from 'zod'
 import { CreateApproachSchema } from '@gash/schemas'
+import { useLogStore } from '@/stores/useLogStore'
 
 interface LogBottomSheetProps {
-  onSubmit: (data: any) => void | Promise<void>
+  onDismiss?: () => void
 }
 
 const APPROACH_TYPES = [
@@ -144,17 +145,9 @@ export function LogBottomSheet({ onSubmit }: LogBottomSheetProps) {
   }
 
   const onFormSubmit = async (data: any) => {
-    try {
-      await onSubmit(data)
-      dismiss()
-    } catch (err) {
-      console.error('Form submission error:', err)
-      Toast.show({
-        type: 'error',
-        text1: 'בעיה בשמירה',
-        text2: 'נסה שוב',
-      })
-    }
+    const { addApproach } = useLogStore()
+    await addApproach(data)
+    dismiss()
   }
 
   return (

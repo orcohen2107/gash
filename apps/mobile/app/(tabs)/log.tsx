@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useRef, useEffect } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { BottomSheetModal, BottomSheetModalProvider } from '@gorhom/bottom-sheet'
 import { LogBottomSheet } from '@/components/log/LogBottomSheet'
@@ -7,18 +7,14 @@ import { useLogStore } from '@/stores/useLogStore'
 export default function LogScreen() {
   const bottomSheetRef = useRef<BottomSheetModal>(null)
   const snapPoints = [90]
+  const { loadApproaches } = useLogStore()
+
+  useEffect(() => {
+    loadApproaches()
+  }, [loadApproaches])
 
   const handleOpenSheet = () => {
     bottomSheetRef.current?.present()
-  }
-
-  const handleSheetClose = () => {
-    bottomSheetRef.current?.dismiss()
-  }
-
-  const handleSubmit = async (data: any) => {
-    console.log('Form submitted:', data)
-    await useLogStore().addApproach(data)
   }
 
   return (
@@ -36,7 +32,7 @@ export default function LogScreen() {
       </View>
 
       <BottomSheetModal ref={bottomSheetRef} snapPoints={snapPoints} enablePanDownToClose>
-        <LogBottomSheet onSubmit={handleSubmit} />
+        <LogBottomSheet />
       </BottomSheetModal>
     </BottomSheetModalProvider>
   )
