@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "4b484ada-4191-472d-aa18-4c1da18cd455"
+      }
+    },
+    "owner": "gash-app",
+    "plugins": [
+      "expo-localization"
+    ]
+  }
+}

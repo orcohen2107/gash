@@ -1,8 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { I18nManager, View } from 'react-native'
-import { Slot, Redirect, useRouter } from 'expo-router'
+import { Slot, Redirect, useRouter, usePathname } from 'expo-router'
 import * as Updates from 'expo-updates'
 import * as Notifications from 'expo-notifications'
+import * as Sentry from 'sentry-expo'
+import { PostHogProvider } from 'posthog-react-native'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
@@ -12,8 +14,20 @@ import { registerForPushNotifications, setupNotificationResponseHandler } from '
 import { analytics } from '@/lib/analytics'
 import { supabase } from '@/lib/supabase'
 
-export default function RootLayout() {
+// Initialize Sentry for error tracking
+if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    enableInExpoDevelopment: true,
+    environment: process.env.NODE_ENV || 'production',
+    tracesSampleRate: 1.0,
+  })
+}
+
+function RootLayoutContent() {
   const router = useRouter()
+  const pathname = usePathname()
+  const previousPathname = useRef<string>()
   const rtlInitialized = useSettingsStore((s) => s.rtlInitialized)
   const setRtlInitialized = useSettingsStore((s) => s.setRtlInitialized)
 
@@ -24,6 +38,14 @@ export default function RootLayout() {
 
   const networkState = useNetworkStatus()
   const offline = isOffline(networkState)
+
+  // Track screen views with PostHog
+  useEffect(() => {
+    if (previousPathname.current !== pathname) {
+      analytics.trackScreenView(pathname.replace(/^\/(tabs\/)?/, '') || 'home')
+      previousPathname.current = pathname
+    }
+  }, [pathname])
 
   useEffect(() => {
     // RTL must be forced before any component renders on first launch.
@@ -97,5 +119,15 @@ export default function RootLayout() {
         <Slot />
       </View>
     </ErrorBoundary>
+  )
+}
+
+export default function RootLayout() {
+  return (
+    <PostHogProvider apiKey={process.env.EXPO_PUBLIC_POSTHOG_API_KEY || ''} options={{
+      host: 'https://us.i.posthog.com',
+    }}>
+      <RootLayoutContent />
+    </PostHogProvider>
   )
 }
