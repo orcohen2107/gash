@@ -2,20 +2,67 @@ import React, { useEffect, useState } from 'react'
 import { View, ScrollView, StyleSheet, Text } from 'react-native'
 import MissionCard from '@/components/dashboard/MissionCard'
 import { useBadgesStore } from '@/stores/useBadgesStore'
+import { useStatsStore } from '@/stores/useStatsStore'
+import { useLogStore } from '@/stores/useLogStore'
+import KPICard from '@/components/dashboard/KPICard'
+import InsightCard from '@/components/dashboard/InsightCard'
+import ChemistryLineChart from '@/components/dashboard/ChemistryLineChart'
+import SuccessBarChart from '@/components/dashboard/SuccessBarChart'
+
+const APPROACH_TYPE_LABELS: Record<string, string> = {
+  direct: 'ישיר',
+  situational: 'סיטואטיבי',
+  humor: 'הומור',
+  online: 'אונליין',
+}
 
 export default function DashboardScreen() {
   const mission = useBadgesStore((state) => state.mission)
   const fetchMission = useBadgesStore((state) => state.fetchMission)
-  const [loading, setLoading] = useState(false)
+  const { totalApproaches, successRate, avgChemistry, topApproachType } = useStatsStore()
+  const { approaches } = useLogStore()
+  const [missionLoading, setMissionLoading] = useState(false)
+  const [insight, setInsight] = useState<string>('')
+  const [loadingInsight, setLoadingInsight] = useState(false)
 
+  // Load mission and insight on mount and subscribe to changes
   useEffect(() => {
     const loadMission = async () => {
-      setLoading(true)
+      setMissionLoading(true)
       await fetchMission()
-      setLoading(false)
+      setMissionLoading(false)
     }
     loadMission()
+
+    loadInsight()
+    const unsubscribe = useLogStore.getState().subscribeToChanges()
+    return unsubscribe
   }, [fetchMission])
+
+  const loadInsight = async () => {
+    setLoadingInsight(true)
+    try {
+      const insightsData = await useStatsStore.getState().fetchInsights()
+      const firstInsight = insightsData.insights?.[0] || 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
+      setInsight(firstInsight)
+    } catch (err) {
+      console.error('Failed to load insight:', err)
+      setInsight('המשך לתעד גישות כדי לקבל תובנות מ-AI')
+    } finally {
+      setLoadingInsight(false)
+    }
+  }
+
+  if (approaches.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyTitle}>דשבורד</Text>
+        <Text style={styles.emptyText}>
+          התחל לתעד גישות כדי לראות ניתוחים ותובנות
+        </Text>
+      </View>
+    )
+  }
 
   return (
     <View style={styles.container}>
@@ -23,13 +70,28 @@ export default function DashboardScreen() {
         <Text style={styles.title}>דשבורד</Text>
       </View>
 
-      <ScrollView style={styles.scrollView}>
-        <MissionCard mission={mission} loading={loading} />
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>
-            נתונים נוספים (מטריקות, גרפים) יופיעו כאן ב-Phase 4
-          </Text>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Mission Card */}
+        <MissionCard mission={mission} loading={missionLoading} />
+
+        {/* KPI Cards Grid */}
+        <View style={styles.kpiGrid}>
+          <KPICard label="סה״כ גישות" value={totalApproaches} icon="📊" />
+          <KPICard label="שיעור הצלחה" value={`${successRate}%`} icon="✅" />
+          <KPICard label="ממוצע כימיה" value={avgChemistry} icon="⚡" />
+          <KPICard
+            label="סוג מוביל"
+            value={topApproachType ? APPROACH_TYPE_LABELS[topApproachType] : '—'}
+            icon="🎯"
+          />
         </View>
+
+        {/* Charts */}
+        <ChemistryLineChart />
+        <SuccessBarChart />
+
+        {/* Insight Card */}
+        <InsightCard insight={insight} loading={loadingInsight} />
       </ScrollView>
     </View>
   )
@@ -56,19 +118,32 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  placeholder: {
-    marginHorizontal: 16,
-    marginVertical: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 24,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+  scrollContent: {
+    paddingVertical: 12,
   },
-  placeholderText: {
+  kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 4,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: '#0e0e0e',
+  },
+  emptyTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 16,
+    textAlign: 'right',
+  },
+  emptyText: {
     fontSize: 14,
-    color: '#666666',
+    color: '#adaaaa',
     textAlign: 'center',
+    lineHeight: 20,
   },
 })

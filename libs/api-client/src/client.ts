@@ -55,6 +55,26 @@ async function get<TRes>(config: ApiClientConfig, path: string): Promise<TRes> {
   return response.json() as Promise<TRes>
 }
 
+async function put<TReq, TRes>(
+  config: ApiClientConfig,
+  path: string,
+  body: TReq
+): Promise<TRes> {
+  const headers = await config.getHeaders()
+  const response = await fetch(`${config.serverUrl}${path}`, {
+    method: 'PUT',
+    headers,
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: { message: response.statusText } }))
+    throw new Error(error.error?.message ?? response.statusText)
+  }
+
+  return response.json() as Promise<TRes>
+}
+
 async function del(config: ApiClientConfig, path: string): Promise<void> {
   const headers = await config.getHeaders()
   const response = await fetch(`${config.serverUrl}${path}`, { method: 'DELETE', headers })
@@ -75,10 +95,11 @@ export interface ApiClient {
     history: () => Promise<{ messages: ChatMessage[] }>
   }
   approaches: {
-    list: () => Promise<{ approaches: Approach[] }>
-    create: (approach: Omit<Approach, 'id' | 'user_id' | 'created_at'>) => Promise<{ approach: Approach }>
-    update: (id: string, updates: Partial<Approach>) => Promise<{ approach: Approach }>
-    remove: (id: string) => Promise<void>
+    list: (filters?: { approach_type?: string; startDate?: string; endDate?: string; search?: string }) => Promise<{ approaches: Approach[] }>
+    create: (approach: Omit<Approach, 'id' | 'user_id' | 'created_at'>) => Promise<{ id: string; feedback: string; created_at: string }>
+    update: (id: string, updates: Partial<Approach>) => Promise<Approach>
+    delete: (id: string) => Promise<void>
+    get: (id: string) => Promise<Approach>
   }
   insights: {
     get: () => Promise<{ insights: InsightsResponse }>
@@ -98,10 +119,19 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       history: () => get(config, '/api/coach/history'),
     },
     approaches: {
-      list: () => get(config, '/api/approaches'),
+      list: (filters) => {
+        const params = new URLSearchParams()
+        if (filters?.approach_type) params.append('approach_type', filters.approach_type)
+        if (filters?.startDate) params.append('startDate', filters.startDate)
+        if (filters?.endDate) params.append('endDate', filters.endDate)
+        if (filters?.search) params.append('search', filters.search)
+        const query = params.toString()
+        return get(config, `/api/approaches${query ? `?${query}` : ''}`)
+      },
       create: (approach) => post(config, '/api/approaches', approach),
-      update: (id, updates) => post(config, `/api/approaches/${id}`, updates),
-      remove: (id) => del(config, `/api/approaches/${id}`),
+      update: (id, updates) => put(config, `/api/approaches/${id}`, updates),
+      delete: (id) => del(config, `/api/approaches/${id}`),
+      get: (id) => get(config, `/api/approaches/${id}`),
     },
     insights: {
       get: () => get(config, '/api/insights'),

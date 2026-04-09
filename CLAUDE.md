@@ -25,12 +25,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
-## Folder Structure
+## Folder Structure (Nx Monorepo)
 
 ```
 apps/
-  mobile/                     ← Expo app (Expo Go compatible)
-    app/                      ← Expo Router pages
+  mobile/                     ← Expo app (Expo Go compatible, npm workspace)
+    app/                      ← Expo Router v4 pages (file-based routing)
       _layout.tsx             ← Root layout: RTL boot, auth guard, Supabase session
       (tabs)/
         _layout.tsx           ← Tab bar definition (5 tabs, Hebrew labels, RTL order)
@@ -42,11 +42,24 @@ apps/
       auth/
         index.tsx             ← Phone number input screen
         verify.tsx            ← OTP verification screen
+    components/               ← Shared React components (by feature)
+      chat/                   ← ChatBubble, TypingIndicator, ChatInput
+      log/                    ← LogBottomSheet, DropdownField, DatePicker
+      journal/                ← JournalListItem, FilterBar, SearchInput
+      dashboard/              ← KPICard, ChemistryLineChart, SuccessBarChart, InsightCard
+      tips/                   ← TipCard, MissionCard, StreakBadge
+      ui/                     ← Shared: Button, Input, Screen, Typography
+    stores/                   ← Zustand stores with AsyncStorage persist
+      useAuthStore.ts         ← user, session, signIn, signOut
+      useChatStore.ts         ← messages[], sendMessage, loadHistory
+      useLogStore.ts          ← approaches[], addApproach, editApproach, deleteApproach
+      useStatsStore.ts        ← computed KPIs, streak, weeklyMission
+      useSettingsStore.ts     ← rtlInitialized flag, preferences
     lib/
-      supabase.ts             ← Supabase client — auth only (OTP + session)
+      supabase.ts             ← createClient() with expo-secure-store session adapter
       server.ts               ← SERVER_URL + getAuthHeaders() for api-client
 
-  server/                     ← Next.js (Vercel)
+  server/                     ← Next.js App Router (Vercel deployment)
     app/api/
       coach/route.ts          ← POST /api/coach (coach/boost/debrief routing)
       coach/onboarding/       ← POST /api/coach/onboarding
@@ -61,43 +74,11 @@ apps/
       claude.ts               ← callClaude / callClaudeJSON (Anthropic SDK)
       agents/                 ← router.ts + 8 agent files
 
-libs/
-  types/src/index.ts          ← @gash/types — all TS interfaces + API request/response types
-  schemas/src/index.ts        ← @gash/schemas — Zod schemas (shared mobile forms ↔ server validation)
+libs/                         ← Shared npm workspaces (imported as @gash/*)
+  types/src/index.ts          ← @gash/types — all TS interfaces + API types
+  schemas/src/index.ts        ← @gash/schemas — Zod schemas (mobile forms ↔ server validation)
   constants/src/index.ts      ← @gash/constants — Hebrew labels, tips, missions, enums
-  api-client/src/index.ts     ← @gash/api-client — typed HTTP client (mobile → server)
-
-components/
-  chat/                     ← ChatBubble, TypingIndicator, ChatInput
-  log/                      ← LogBottomSheet, ChemistrySlider, ApproachTypeDropdown
-  journal/                  ← JournalListItem, FilterBar, SearchInput
-  dashboard/                ← KPICard, ChemistryLineChart, SuccessBarChart, InsightCard
-  tips/                     ← TipCard, MissionCard, StreakBadge
-  ui/                       ← Shared: Button, Input, Screen, Typography
-
-stores/
-  useAuthStore.ts           ← user, session, signIn, signOut
-  useChatStore.ts           ← messages[], sendMessage, loadHistory
-  useLogStore.ts            ← approaches[], addApproach, editApproach, deleteApproach
-  useStatsStore.ts          ← computed KPIs, streak, weeklyMission
-  useSettingsStore.ts       ← rtlInitialized flag, preferences
-
-lib/
-  supabase.ts               ← createClient() with expo-secure-store session adapter
-  claude.ts                 ← callCoach(messages) — calls ask-coach Edge Function
-
-supabase/
-  functions/
-    ask-coach/
-      index.ts              ← Deno Edge Function: validates JWT, calls Claude API
-  migrations/               ← SQL: users, approaches, chat_messages, user_insights + RLS
-
-constants/
-  tips.ts                   ← Static Hebrew tips data (JSON)
-  missions.ts               ← Weekly missions rotation
-
-types/
-  index.ts                  ← Approach, ChatMessage, UserInsights, WeeklyMission
+  api-client/src/index.ts     ← @gash/api-client — typed HTTP client (mobile → server only)
 ```
 
 ---
@@ -203,14 +184,14 @@ user_insights  (user_id, weekly_mission, missions_completed, streak, last_analys
 
 ## Critical — Do Not
 
-- Do not add Firebase packages (`@react-native-firebase/*`, `firebase`)
-- Do not call Claude API from mobile — always through `apps/server/` Next.js routes
-- Do not call Supabase for data from mobile — use `@gash/api-client` only. Auth is the only exception.
-- Do not use `SUPABASE_SERVICE_ROLE_KEY` or `CLAUDE_API_KEY` in `apps/mobile/` — server only
-- Do not use directional style props (`paddingLeft`, `marginRight`, `left: 0`)
-- Do not write UI copy in English — everything is Hebrew
-- Do not use `StyleSheet.create` with hardcoded `textAlign: 'left'` — use `'right'` or `'auto'`
-- Do not add code to `supabase/functions/` — Edge Functions are deleted and replaced by `apps/server/`
+- **Do not call Claude API from mobile** — always through `apps/server/` Next.js routes
+- **Do not call Supabase data APIs from mobile** — use `@gash/api-client` only. Auth (Supabase SDK) is the only exception
+- **Do not expose secrets in mobile** — never use `SUPABASE_SERVICE_ROLE_KEY` or `CLAUDE_API_KEY` in `apps/mobile/` → server only
+- **Do not use directional style props** — avoid `paddingLeft`, `marginRight`, `left: 0`. Use `paddingStart`, `marginEnd`, etc. for RTL compliance
+- **Do not write UI copy in English** — all text is Hebrew (labels, errors, placeholders, buttons)
+- **Do not hardcode `textAlign: 'left'`** — use `'right'` or `'auto'` (RTL context)
+- **Do not store secrets locally** — keep API keys in `.env` or Supabase secrets, never commit them
+- **Do not import from sibling apps** — use npm workspaces (`@gash/types`, `@gash/schemas`, etc.)
 
 ---
 
@@ -245,7 +226,18 @@ const userProfile = await buildUserContext(userId)
 
 ---
 
-## GSD Workflow
+## Project Phases
 
-Planning docs in `.planning/`. Current phase: **Phase 1 — Foundation** (not started).
-Run `/gsd:plan-phase 1` to start.
+Planning docs in `.planning/phases/`.
+
+| Phase | Status | Focus |
+|-------|--------|-------|
+| Phase 1: Foundation | ✅ Complete | Nx monorepo setup, shared libs, auth, chat scaffold |
+| Phase 1.5: Nx Migration | ✅ Complete | Full monorepo migration, all 8 agents, typed api-client |
+| Phase 2: Chat & Coach | ✅ Complete | AI coach integration, message history, RTL compliance |
+| **Phase 3: Log Journal** | 🔄 **In Progress** | Approach logging (form), CRUD, journal list, filters |
+| Phase 4: Dashboard | ⏳ Planned | Analytics, charts, insights, weekly missions |
+| Phase 5: Tips & Missions | ⏳ Planned | Tips library, mission tracking, streak system |
+| Phase 6: Polish & Launch | ⏳ Planned | Performance, testing, Vercel + EAS deployment |
+
+**Current work:** Phase 3 Plans 02-04 (CRUD, journal list, filtering)
