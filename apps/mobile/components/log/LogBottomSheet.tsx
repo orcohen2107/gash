@@ -108,7 +108,7 @@ function DropdownField({
   )
 }
 
-export function LogBottomSheet({ onSubmit }: LogBottomSheetProps) {
+export function LogBottomSheet({}: LogBottomSheetProps) {
   const { dismiss } = useBottomSheetModal()
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [selectedDate, setSelectedDate] = useState(new Date())

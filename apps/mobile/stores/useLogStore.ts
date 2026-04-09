@@ -121,7 +121,6 @@ export const useLogStore = create<LogStore>()(
         Toast.show({
           type: 'success',
           text1: feedback,
-          duration: 2000,
         })
       },
     }),
