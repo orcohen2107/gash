@@ -9,6 +9,30 @@ import type { Approach } from '@gash/types'
 
 const client = createApiClient({ serverUrl: SERVER_URL, getHeaders: getAuthHeaders })
 
+const MAX_RETRIES = 3
+const RETRY_DELAY = 1000 // ms
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries = MAX_RETRIES
+): Promise<T> {
+  let lastError: unknown
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn()
+    } catch (err) {
+      lastError = err
+      if (i < retries - 1) {
+        const delay = RETRY_DELAY * Math.pow(2, i)
+        await sleep(delay)
+      }
+    }
+  }
+  throw lastError
+}
+
 interface LogStore {
   approaches: Approach[]
   loading: boolean
@@ -51,8 +75,8 @@ export const useLogStore = create<LogStore>()(
         set((state) => ({ approaches: [tempApproach, ...state.approaches] }))
 
         try {
-          // Call server in background
-          const { id, feedback } = await client.approaches.create(approach)
+          // Call server with retry logic
+          const { id, feedback } = await withRetry(() => client.approaches.create(approach))
 
           // Replace temp ID with real ID
           set((state) => ({
@@ -82,12 +106,15 @@ export const useLogStore = create<LogStore>()(
           Toast.show({
             type: 'error',
             text1: 'בעיה בשמירה',
-            text2: 'נסה שוב',
+            text2: 'בדוק את החיבור שלך ונסה שוב',
           })
         }
       },
 
       updateApproach: async (id, updates) => {
+        // Store original state for rollback
+        const original = get().approaches.find((a) => a.id === id)
+
         // Optimistic update: update local array immediately
         set((state) => ({
           approaches: state.approaches.map((a) =>
@@ -96,37 +123,52 @@ export const useLogStore = create<LogStore>()(
         }))
 
         try {
-          // Call server in background
-          await client.approaches.update(id, updates)
+          // Call server with retry logic
+          await withRetry(() => client.approaches.update(id, updates))
         } catch (err) {
           console.error('Failed to update approach:', err)
-          // Reload from server on error to revert changes
-          await get().loadApproaches()
+          // Restore original state on error
+          if (original) {
+            set((state) => ({
+              approaches: state.approaches.map((a) =>
+                a.id === id ? original : a
+              ),
+            }))
+          }
           Toast.show({
             type: 'error',
             text1: 'בעיה בעדכון',
-            text2: 'נסה שוב',
+            text2: 'בדוק את החיבור שלך ונסה שוב',
           })
         }
       },
 
       deleteApproach: async (id) => {
+        // Store original approach for rollback
+        const original = get().approaches.find((a) => a.id === id)
+
         // Optimistic delete: remove from array immediately
         set((state) => ({
           approaches: state.approaches.filter((a) => a.id !== id),
         }))
 
         try {
-          // Call server in background
-          await client.approaches.delete(id)
+          // Call server with retry logic
+          await withRetry(() => client.approaches.delete(id))
         } catch (err) {
           console.error('Failed to delete approach:', err)
-          // Reload from server on error to restore entry
-          await get().loadApproaches()
+          // Restore approach on error
+          if (original) {
+            set((state) => ({
+              approaches: [...state.approaches, original].sort(
+                (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+              ),
+            }))
+          }
           Toast.show({
             type: 'error',
             text1: 'בעיה במחיקה',
-            text2: 'נסה שוב',
+            text2: 'בדוק את החיבור שלך ונסה שוב',
           })
         }
       },
