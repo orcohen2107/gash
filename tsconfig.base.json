@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitReturns": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "paths": {
+      "@gash/types": ["libs/types/src/index.ts"],
+      "@gash/schemas": ["libs/schemas/src/index.ts"],
+      "@gash/constants": ["libs/constants/src/index.ts"],
+      "@gash/api-client": ["libs/api-client/src/index.ts"]
+    }
+  }
+}

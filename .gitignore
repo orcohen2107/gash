@@ -1,0 +1,41 @@
+# Environment variables (never commit real credentials)
+.env
+.env.local
+.env.*.local
+
+# Expo / React Native
+.expo/
+node_modules/
+dist/
+.nx/
+.planning/
+
+# Native build outputs
+ios/
+android/
+
+# Supabase local dev
+supabase/.branches/
+supabase/.temp/
+
+# Git worktrees
+.worktrees/
+
+# macOS
+.DS_Store
+*.DS_Store
+
+# Editor
+.vscode/
+.cursor/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

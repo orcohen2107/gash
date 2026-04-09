@@ -26,7 +26,7 @@
 - [ ] **TRCK-01**: User can open a quick log form (bottom sheet) via FAB button
 - [ ] **TRCK-02**: Log form includes all 8 fields: date, location, approach type, opener, her response, chemistry score (1-10 slider), follow-up type, notes
 - [ ] **TRCK-03**: Log form submits in under 60 seconds (dropdowns/presets for common values)
-- [ ] **TRCK-04**: Approach entry is saved to Firestore on submit
+- [ ] **TRCK-04**: Approach entry is saved to Supabase (`approaches` table) on submit
 - [ ] **TRCK-05**: User sees a brief AI feedback message after saving (e.g., "גישה ישירה — יפה!")
 - [ ] **TRCK-06**: User can edit an existing approach entry
 - [ ] **TRCK-07**: User can delete an approach entry
@@ -59,10 +59,10 @@
 
 ### App Foundation
 
-- [ ] **FNDN-01**: App uses forced RTL (Hebrew right-to-left) throughout all screens
-- [ ] **FNDN-02**: App runs in Expo Go on iOS and Android (no EAS dev build required for development)
-- [ ] **FNDN-03**: Tab navigation with 5 tabs: Coach, Log, Journal, Dashboard, Tips
-- [ ] **FNDN-04**: All text, labels, and UI copy is in Hebrew
+- [x] **FNDN-01**: App uses forced RTL (Hebrew right-to-left) throughout all screens
+- [x] **FNDN-02**: App runs in Expo Go on iOS and Android (no EAS dev build required for development)
+- [x] **FNDN-03**: Tab navigation with 5 tabs: Coach, Log, Journal, Dashboard, Tips
+- [x] **FNDN-04**: All text, labels, and UI copy is in Hebrew
 
 ---
 
@@ -121,10 +121,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FNDN-01 | Phase 1 | Pending |
-| FNDN-02 | Phase 1 | Pending |
-| FNDN-03 | Phase 1 | Pending |
-| FNDN-04 | Phase 1 | Pending |
+| FNDN-01 | Phase 1 | Complete |
+| FNDN-02 | Phase 1 | Complete |
+| FNDN-03 | Phase 1 | Complete |
+| FNDN-04 | Phase 1 | Complete |
 | AUTH-01 | Phase 2 | Pending |
 | AUTH-02 | Phase 2 | Pending |
 | AUTH-03 | Phase 2 | Pending |

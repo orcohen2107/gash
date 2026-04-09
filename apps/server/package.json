@@ -1,0 +1,30 @@
+{
+  "name": "@gash/server",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start -p 3001",
+    "test": "jest --config=jest.config.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.0",
+    "@gash/constants": "*",
+    "@gash/schemas": "*",
+    "@gash/types": "*",
+    "@supabase/supabase-js": "^2.102.1",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.11",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.0",
+    "typescript": "^5.3.0"
+  }
+}

@@ -2,7 +2,12 @@
 
 ## Overview
 
-Six phases take Gash from an empty Expo project to an App Store–ready Hebrew AI dating coach. Phase 1 establishes the foundation (Supabase project + schema, RTL boot config, Expo Router navigation shell, Zustand stores, Supabase Edge Function scaffold) before any feature code is written. No EAS dev build required — Expo Go works throughout development. Phase 2 adds phone auth and the core AI chat loop. Phases 3–5 deliver the tracker, journal, dashboard, and tips. Phase 6 hardens and ships.
+Seven phases take Gash from an empty Expo project to an App Store–ready Hebrew AI dating coach. Phase 1 establishes the foundation. **Phase 1.5 migrates to an Nx monorepo** with a Next.js server on Vercel — all Claude API calls and Supabase data operations move server-side; the mobile app uses a typed `@gash/api-client` to talk to the server. Phase 2 adds phone auth and the core AI chat loop. Phases 3–5 deliver the tracker, journal, dashboard, and tips. Phase 6 hardens and ships.
+
+**Architecture (from Phase 1.5 onward):**
+- `apps/mobile/` — Expo app (Expo Go compatible). Auth direct to Supabase. All data/AI via Next.js server.
+- `apps/server/` — Next.js on Vercel. Holds all 8 AI agents, Supabase service role client, Claude API key.
+- `libs/types/`, `libs/schemas/`, `libs/constants/`, `libs/api-client/` — shared code.
 
 ## Phases
 
@@ -13,7 +18,8 @@ Six phases take Gash from an empty Expo project to an App Store–ready Hebrew A
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Foundation** - Supabase project + schema, RTL boot config, Expo Router shell, Zustand stores, Edge Function scaffold (Expo Go compatible)
-- [ ] **Phase 2: Auth & AI Coach** - Phone OTP auth (Supabase+Twilio), Claude API via Edge Function, custom FlatList chat UI, Supabase message persistence
+- [ ] **Phase 1.5: Nx Monorepo Migration (INSERTED)** - Nx workspace, apps/mobile + apps/server (Next.js/Vercel), libs (types/schemas/constants/api-client), all AI agents moved server-side, Edge Functions deleted
+- [ ] **Phase 2: Auth & AI Coach** - Phone OTP auth (Supabase+Twilio), Claude API via Next.js server, custom FlatList chat UI, Supabase message persistence via server
 - [ ] **Phase 3: Approach Tracker & Journal** - Bottom sheet log form, Firestore CRUD, journal list with filters and search
 - [ ] **Phase 4: Dashboard & Analytics** - Metrics computation, gifted-charts visualizations, AI insight strings, real-time updates
 - [ ] **Phase 5: Tips, Missions & Gamification** - Static tips library, weekly mission display and completion, streak counter
@@ -32,19 +38,43 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Calling the `ask-coach` Supabase Edge Function from the app returns a hardcoded response without error (pipeline verified end-to-end)
   5. Zustand stores (`useAuthStore`, `useChatStore`, `useLogStore`, `useStatsStore`, `useSettingsStore`) are initialized with AsyncStorage persistence and importable from any screen
   6. Supabase schema is migrated: `users`, `approaches`, `chat_messages`, `user_insights` tables with RLS policies
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 5 plans
 
 Plans:
-- [ ] 01-01: Supabase project setup — create Supabase project, run schema migrations (`users`, `approaches`, `chat_messages`, `user_insights`), RLS policies for user-owned data, `SUPABASE_URL` + `SUPABASE_ANON_KEY` in `.env`, Supabase CLI configured
-- [ ] 01-02: RTL boot config — `I18nManager.forceRTL(true)` + `allowRTL(true)` in root `_layout.tsx`, one-time reload guard in `useSettingsStore`, verified on physical device via Expo Go
-- [ ] 01-03: Expo Router v3 navigation shell — 5-tab layout with Hebrew labels, placeholder screens for all 5 tabs, tab array ordered for RTL visual layout (right to left: יומן, לוח, +, שליחויות, צ'אט)
-- [ ] 01-04: Zustand stores scaffold — all 5 stores defined with TypeScript interfaces, `persist` middleware wired to AsyncStorage, `expo-secure-store` adapter for auth tokens
-- [ ] 01-05: Supabase Edge Function scaffold — `supabase/functions/ask-coach/index.ts` with Deno, hardcoded Hebrew response, `CLAUDE_API_KEY` in Supabase secrets, `supabase functions serve` for local dev, end-to-end call verified from app
+- [x] 01-01-PLAN.md — Supabase project setup: schema migrations (4 tables + RLS + indexes), .env wired
+- [x] 01-02-PLAN.md — RTL boot config: useSettingsStore with rtlInitialized flag, I18nManager.forceRTL in root layout
+- [x] 01-03-PLAN.md — Expo Router v4 navigation shell: 5-tab layout Hebrew labels RTL order, placeholder screens, lib/supabase.ts, types/index.ts
+- [x] 01-04-PLAN.md — Zustand stores scaffold: 4 remaining stores (auth/chat/log/stats) with persist, Jest infrastructure
+- [ ] 01-05-PLAN.md — Edge Function scaffold: ask-coach Deno function deployed, lib/claude.ts client stub, end-to-end verified
+
+### Phase 1.5: Nx Monorepo Migration (INSERTED)
+**Goal**: Convert the root Expo project into an Nx monorepo. `apps/mobile` (Expo), `apps/server` (Next.js on Vercel), `libs/types`, `libs/schemas`, `libs/constants`, `libs/api-client`. All AI agents and Supabase data calls move to the server. Edge Functions deleted.
+**Depends on**: Phase 1
+**Requirements**: ARCH-01
+**Success Criteria** (what must be TRUE):
+  1. `npx nx run mobile:start` launches Expo Go — identical to before
+  2. `npx nx run server:dev` starts Next.js locally on port 3001
+  3. Mobile sends chat message → Next.js → Claude → Hebrew reply displayed
+  4. All Zustand stores use `@gash/api-client` for data (no direct Supabase data calls from mobile)
+  5. `supabase/functions/` deleted
+  6. Next.js server deployed to Vercel, mobile `.env` points to production URL
+**Plans**: 5 plans
+
+Plans:
+- [ ] 01.5-01 — Nx workspace init + apps/mobile migration
+- [ ] 01.5-02 — libs scaffold: types, schemas, constants, api-client skeleton
+- [ ] 01.5-03 — apps/server: Next.js + all 8 AI agents + 7 API routes
+- [ ] 01.5-04 — libs/api-client implementation + mobile stores wiring
+- [ ] 01.5-05 — Edge Functions cleanup + Vercel deploy
+
+**Implementation plan:** `docs/superpowers/plans/2026-04-08-nx-monorepo-migration.md`
+**Design spec:** `docs/superpowers/specs/2026-04-08-nx-monorepo-migration-design.md`
+
+---
 
 ### Phase 2: Auth & AI Coach
 **Goal**: Users can sign in with an Israeli phone number, send Hebrew messages to the Gash AI persona, and have their conversation history persist across sessions.
-**Depends on**: Phase 1
+**Depends on**: Phase 1.5
 **Requirements**: AUTH-01, AUTH-02, AUTH-03, AUTH-04, CHAT-01, CHAT-02, CHAT-03, CHAT-04, CHAT-05, CHAT-06
 **Success Criteria** (what must be TRUE):
   1. User can enter an Israeli phone number, receive an OTP via SMS, verify it, and land on the main app
@@ -99,8 +129,9 @@ Plans:
 Plans:
 - [ ] 04-01: Metrics computation — `useStatsStore` derives 4 KPIs from `useLogStore` data reactively, or via Supabase aggregate query (`count`, `avg`) on `approaches` table
 - [ ] 04-02: `react-native-gifted-charts` visualizations — line chart (chemistry trend, 30 entries, `yAxisSide='right'`), bar chart (success rate by type, 4 bars), both RTL-tested on physical device
-- [ ] 04-03: AI insight strings — `ask-coach` Edge Function called with last 30 approach entries, returns 2-3 Hebrew insight strings, written to `user_insights` table, displayed in dashboard
-- [ ] 04-04: Real-time updates — Supabase Realtime `channel` subscription on `approaches` table wired to `useLogStore`, stats recomputed on insert/update, dashboard re-renders without navigation
+- [ ] 04-03: `buildUserContext()` — function in Edge Function that queries last 30 approaches, computes `bestType/worstType/avgChemistry/recentPattern`, injected into every `coach` system prompt from this phase onward (see `.planning/skills/user-profile-builder.md`)
+- [ ] 04-04: AI insight strings — `ask-coach` with `type: 'insights'` called on dashboard open, returns JSON with 2-3 Hebrew insight strings + weeklyMission, written to `user_insights` table (see `.planning/agents-prompts.md`)
+- [ ] 04-05: Real-time updates — Supabase Realtime `channel` subscription on `approaches` table wired to `useLogStore`, stats recomputed on insert/update, dashboard re-renders without navigation
 
 ### Phase 5: Tips, Missions & Gamification
 **Goal**: Users can browse a Hebrew tips library, see their current weekly mission, mark it complete, and track their daily approach streak.
@@ -147,7 +178,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/5 | Not started | - |
+| 1. Foundation | 2/5 | In Progress|  |
 | 2. Auth & AI Coach | 0/5 | Not started | - |
 | 3. Approach Tracker & Journal | 0/4 | Not started | - |
 | 4. Dashboard & Analytics | 0/4 | Not started | - |
