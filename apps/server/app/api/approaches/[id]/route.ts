@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       )
     }
 
-    return NextResponse.json({ approach: data })
+    return NextResponse.json(data)
   } catch (error) {
     return handleApiError(error)
   }
@@ -42,9 +42,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params
     const supabase = createServiceClient()
 
+    // Soft delete: set deleted_at timestamp
     const { error } = await supabase
       .from('approaches')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', userId)
 

@@ -3,17 +3,33 @@ import { verifyAuth } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
 import { handleApiError } from '@/lib/apiError'
 import { CreateApproachSchema } from '@gash/schemas'
+import { runApproachFeedbackAgent } from '@/lib/agents/approachFeedback'
+import { buildUserContext } from '@/lib/agents/buildUserContext'
 
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await verifyAuth(request)
     const supabase = createServiceClient()
 
-    const { data, error } = await supabase
+    const url = new URL(request.url)
+    const approachType = url.searchParams.get('approach_type')
+    const startDate = url.searchParams.get('startDate')
+    const endDate = url.searchParams.get('endDate')
+    const search = url.searchParams.get('search')
+
+    let query = supabase
       .from('approaches')
       .select('*')
       .eq('user_id', userId)
+      .is('deleted_at', null)
       .order('date', { ascending: false })
+
+    if (approachType) query = query.eq('approach_type', approachType)
+    if (startDate) query = query.gte('date', startDate)
+    if (endDate) query = query.lte('date', endDate)
+    if (search) query = query.ilike('location', `%${search}%`)
+
+    const { data, error } = await query
 
     if (error) throw new Error(error.message)
 
@@ -37,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = createServiceClient()
-    const { data, error } = await supabase
+    const { data: approach, error } = await supabase
       .from('approaches')
       .insert({ ...parsed.data, user_id: userId })
       .select()
@@ -45,7 +61,21 @@ export async function POST(request: NextRequest) {
 
     if (error) throw new Error(error.message)
 
-    return NextResponse.json({ approach: data }, { status: 201 })
+    // Get AI feedback
+    const userContext = await buildUserContext(userId, supabase)
+    const feedbackResponse = await runApproachFeedbackAgent(
+      { approach },
+      userContext
+    )
+
+    return NextResponse.json(
+      {
+        id: approach.id,
+        feedback: feedbackResponse.feedback,
+        created_at: approach.created_at,
+      },
+      { status: 201 }
+    )
   } catch (error) {
     return handleApiError(error)
   }
