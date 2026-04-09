@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createApiClient } from '@gash/api-client'
 import { SERVER_URL, getAuthHeaders } from '@/lib/server'
+import { cache, CACHE_PRESETS } from '@/lib/cache'
 import { useLogStore } from './useLogStore'
 import { sendLocalNotification } from '@/lib/notifications'
 import type { ApproachType, InsightsResponse } from '@gash/types'
@@ -82,10 +83,33 @@ export const useStatsStore = create<StatsStore>()(
 
         fetchInsights: async (): Promise<InsightsResponse> => {
           try {
+            // Check cache first (stale-while-revalidate pattern)
+            const cachedWithMeta = await cache.getWithMetadata<InsightsResponse>('insights')
+
+            if (cachedWithMeta.data && !cachedWithMeta.isExpired) {
+              // Return fresh cached data
+              return cachedWithMeta.data
+            }
+
+            // Fetch fresh from server
             const response = await client.insights.get()
-            return response.insights
+            const insights = response.insights
+
+            // Cache for 1 hour
+            await cache.set('insights', insights, CACHE_PRESETS.LONG)
+
+            return insights
           } catch (err) {
             console.error('Failed to fetch insights:', err)
+
+            // Try to return stale cache if available
+            const cachedWithMeta = await cache.getWithMetadata<InsightsResponse>('insights')
+            if (cachedWithMeta.data) {
+              console.warn('Returning stale cached insights due to fetch error')
+              return cachedWithMeta.data
+            }
+
+            // Fallback response
             return {
               insights: ['המשך לתעד גישות כדי לקבל תובנות מ-AI', '', ''],
               weeklyMission: { title: '', description: '', target: 0, targetType: '' },
