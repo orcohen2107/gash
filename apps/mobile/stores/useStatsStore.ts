@@ -13,6 +13,7 @@ interface StatsStore {
   avgChemistry: number
   topApproachType: ApproachType | null
   fetchInsights: () => Promise<void>
+  incrementStreak: () => Promise<{ streak: number; message: string }>
   setStats: (stats: Partial<Pick<StatsStore, 'streak' | 'totalApproaches' | 'avgChemistry' | 'topApproachType'>>) => void
 }
 
@@ -32,6 +33,21 @@ export const useStatsStore = create<StatsStore>()(
           topApproachType: null,
         })
         void insights
+      },
+      incrementStreak: async () => {
+        try {
+          const response = await fetch(`${SERVER_URL}/api/user/streak`, {
+            method: 'POST',
+            headers: await getAuthHeaders(),
+            body: JSON.stringify({ action: 'increment' }),
+          })
+          const data = (await response.json()) as { streak: number; message: string }
+          set({ streak: data.streak })
+          return data
+        } catch (err) {
+          console.error('Failed to increment streak:', err)
+          return { streak: 0, message: 'Error' }
+        }
       },
       setStats: (stats) => set(stats),
     }),

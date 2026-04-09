@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import Toast from 'react-native-toast-message'
 import { createApiClient } from '@gash/api-client'
 import { SERVER_URL, getAuthHeaders } from '@/lib/server'
 import type { Approach } from '@gash/types'
@@ -27,8 +28,25 @@ export const useLogStore = create<LogStore>()(
         set({ approaches, loading: false })
       },
       addApproach: async (approach) => {
-        const { approach: created } = await client.approaches.create(approach)
-        set((state) => ({ approaches: [created, ...state.approaches] }))
+        try {
+          const { approach: created } = await client.approaches.create(approach)
+          set((state) => ({ approaches: [created, ...state.approaches] }))
+
+          // Increment streak after successful approach creation
+          try {
+            const { useStatsStore } = await import('./useStatsStore')
+            const streakResult = await useStatsStore.getState().incrementStreak()
+            Toast.show({
+              type: 'success',
+              text1: streakResult.message,
+            })
+          } catch (err) {
+            console.error('Failed to increment streak:', err)
+          }
+        } catch (err) {
+          console.error('Failed to add approach:', err)
+          throw err
+        }
       },
       editApproach: async (id, updates) => {
         const { approach: updated } = await client.approaches.update(id, updates)
