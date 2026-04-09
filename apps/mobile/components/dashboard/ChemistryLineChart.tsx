@@ -41,7 +41,6 @@ export default function ChemistryLineChart() {
         scrollToEnd
         showVerticalLines={false}
         xAxisLabelTextStyle={{ color: '#adaaaa', fontSize: 10 } as any}
-        yAxisLabelTextStyle={{ color: '#adaaaa', fontSize: 10 } as any}
       />
     </View>
   )

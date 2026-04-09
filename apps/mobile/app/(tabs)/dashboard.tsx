@@ -30,8 +30,8 @@ export default function DashboardScreen() {
   const loadInsight = async () => {
     setLoadingInsight(true)
     try {
-      const { insights } = await useStatsStore.getState().fetchInsights()
-      const firstInsight = insights?.[0] || 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
+      const insightsData = await useStatsStore.getState().fetchInsights()
+      const firstInsight = insightsData.insights?.[0] || 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
       setInsight(firstInsight)
     } catch (err) {
       console.error('Failed to load insight:', err)

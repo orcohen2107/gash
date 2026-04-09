@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createApiClient } from '@gash/api-client'
 import { SERVER_URL, getAuthHeaders } from '@/lib/server'
 import { useLogStore } from './useLogStore'
-import type { ApproachType } from '@gash/types'
+import type { ApproachType, InsightsResponse } from '@gash/types'
 
 const client = createApiClient({ serverUrl: SERVER_URL, getHeaders: getAuthHeaders })
 
@@ -14,7 +14,7 @@ interface StatsStore {
   successRate: number
   avgChemistry: number
   topApproachType: ApproachType | null
-  fetchInsights: () => Promise<void>
+  fetchInsights: () => Promise<InsightsResponse>
   computeStats: () => void
   setStats: (stats: Partial<Pick<StatsStore, 'streak' | 'totalApproaches' | 'successRate' | 'avgChemistry' | 'topApproachType'>>) => void
 }
@@ -74,17 +74,18 @@ export const useStatsStore = create<StatsStore>()(
           })
         },
 
-        fetchInsights: async () => {
+        fetchInsights: async (): Promise<InsightsResponse> => {
           try {
             const response = await client.insights.get()
-            // Extract insights from response (handle different response formats)
-            const insights = Array.isArray(response.insights)
-              ? response.insights
-              : [response.insights?.insights || 'המשך לתעד גישות כדי לקבל תובנות מ-AI']
-            return { insights, weeklyMission: response.insights?.weeklyMission || {} }
+            return response.insights
           } catch (err) {
             console.error('Failed to fetch insights:', err)
-            return { insights: ['המשך לתעד גישות כדי לקבל תובנות מ-AI'], weeklyMission: {} }
+            return {
+              insights: ['המשך לתעד גישות כדי לקבל תובנות מ-AI', '', ''],
+              weeklyMission: { title: '', description: '', target: 0, targetType: '' },
+              trend: 'יציב',
+              trendExplanation: '',
+            }
           }
         },
 
