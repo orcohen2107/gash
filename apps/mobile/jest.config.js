@@ -18,6 +18,6 @@ module.exports = {
   ],
   testMatch: ['**/__tests__/**/*.test.(ts|tsx)'],
   transformIgnorePatterns: [
-    'node_modules/(?!(@supabase|zustand|@react-native-async-storage|react-native-reanimated)/)',
+    'node_modules/(?!(@supabase|zustand|@react-native-async-storage|react-native-reanimated|react-native-toast-message)/)',
   ],
 }

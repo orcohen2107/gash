@@ -24,3 +24,10 @@ jest.mock('@supabase/supabase-js', () => ({
     },
   })),
 }))
+
+// Mock react-native-toast-message
+jest.mock('react-native-toast-message', () => ({
+  default: {
+    show: jest.fn(),
+  },
+}))
