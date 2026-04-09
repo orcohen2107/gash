@@ -33,15 +33,15 @@ export default function ChemistryLineChart() {
         data={chartData}
         height={200}
         width={320}
-        yAxisSide="right"
+        yAxisSide={'right' as any}
         yAxisLabelWidth={40}
         color="#81ecff"
         dataPointsColor="#81ecff"
         backgroundColor="#0e0e0e"
         scrollToEnd
         showVerticalLines={false}
-        xAxisLabelTextStyle={{ color: '#adaaaa', fontSize: 10 }}
-        yAxisLabelTextStyle={{ color: '#adaaaa', fontSize: 10 }}
+        xAxisLabelTextStyle={{ color: '#adaaaa', fontSize: 10 } as any}
+        yAxisLabelTextStyle={{ color: '#adaaaa', fontSize: 10 } as any}
       />
     </View>
   )

@@ -55,9 +55,8 @@ export default function SuccessBarChart() {
         width={320}
         yAxisLabelWidth={40}
         backgroundColor="#0e0e0e"
-        xAxisLabelTextStyle={{ color: '#adaaaa', fontSize: 10 }}
-        yAxisLabelTextStyle={{ color: '#adaaaa', fontSize: 10 }}
-        yAxisTextStyle={{ textAlign: 'center' }}
+        xAxisLabelTextStyle={{ color: '#adaaaa', fontSize: 10 } as any}
+        yAxisTextStyle={{ textAlign: 'center' } as any}
       />
     </View>
   )
