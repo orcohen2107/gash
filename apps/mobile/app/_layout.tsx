@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { OfflineBanner } from '@/components/OfflineBanner'
 import { useNetworkStatus, isOffline } from '@/lib/useNetworkStatus'
 import { registerForPushNotifications, setupNotificationResponseHandler } from '@/lib/notifications'
+import { analytics } from '@/lib/analytics'
 import { supabase } from '@/lib/supabase'
 
 export default function RootLayout() {
@@ -50,15 +51,19 @@ export default function RootLayout() {
     return () => subscription.unsubscribe()
   }, [setSession, setLoading])
 
-  // Register for push notifications when user is authenticated
+  // Register for push notifications and initialize analytics when user is authenticated
   useEffect(() => {
-    if (!session) return
+    if (!session?.user?.id) return
 
     ;(async () => {
       try {
+        // Initialize analytics
+        await analytics.initialize(session.user.id)
+
+        // Register for push notifications
         await registerForPushNotifications()
       } catch (err) {
-        console.error('Failed to register for push notifications:', err)
+        console.error('Failed to initialize notifications/analytics:', err)
       }
     })()
 

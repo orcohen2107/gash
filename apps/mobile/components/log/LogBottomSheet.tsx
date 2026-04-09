@@ -9,6 +9,7 @@ import Toast from 'react-native-toast-message'
 import { z } from 'zod'
 import { CreateApproachSchema } from '@gash/schemas'
 import { useLogStore } from '@/stores/useLogStore'
+import { analytics } from '@/lib/analytics'
 
 interface LogBottomSheetProps {
   onDismiss?: () => void
@@ -160,6 +161,8 @@ export function LogBottomSheet({}: LogBottomSheetProps) {
   const onFormSubmit = async (data: any) => {
     const { addApproach } = useLogStore()
     await addApproach(data)
+    // Track approach logged
+    analytics.trackApproachLogged(data.approach_type, data.chemistry_score, data.follow_up)
     dismiss()
   }
 

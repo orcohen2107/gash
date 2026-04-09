@@ -8,12 +8,14 @@ import {
   Text,
   View,
 } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Clipboard from 'expo-clipboard'
 import Toast from 'react-native-toast-message'
 import { ChatBubble } from '@/components/chat/ChatBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { useChatStore } from '@/stores/useChatStore'
+import { analytics } from '@/lib/analytics'
 import type { ChatMessage } from '@gash/types'
 
 const BUBBLE_ESTIMATED_HEIGHT = 80
@@ -35,6 +37,13 @@ export default function CoachScreen() {
   const flatListRef = useRef<FlatList<ChatMessage>>(null)
   const [inputValue, setInputValue] = useState('')
 
+  // Track screen view
+  useFocusEffect(
+    useCallback(() => {
+      analytics.trackScreenView('coach')
+    }, [])
+  )
+
   useEffect(() => {
     loadHistory()
   }, [loadHistory])
@@ -43,6 +52,8 @@ export default function CoachScreen() {
     const text = inputValue.trim()
     if (!text) return
     setInputValue('')
+    // Track message sent
+    analytics.trackMessageSent(text.length)
     await sendMessage(text)
   }, [inputValue, sendMessage])
 

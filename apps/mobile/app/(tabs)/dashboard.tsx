@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { View, ScrollView, StyleSheet, Text } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import MissionCard from '@/components/dashboard/MissionCard'
 import { useBadgesStore } from '@/stores/useBadgesStore'
 import { useStatsStore } from '@/stores/useStatsStore'
 import { useLogStore } from '@/stores/useLogStore'
+import { analytics } from '@/lib/analytics'
 import KPICard from '@/components/dashboard/KPICard'
 import InsightCard from '@/components/dashboard/InsightCard'
 import ChemistryLineChart from '@/components/dashboard/ChemistryLineChart'
@@ -24,6 +26,15 @@ export default function DashboardScreen() {
   const [missionLoading, setMissionLoading] = useState(false)
   const [insight, setInsight] = useState<string>('')
   const [loadingInsight, setLoadingInsight] = useState(false)
+
+  // Track screen view
+  useFocusEffect(
+    useCallback(() => {
+      analytics.trackScreenView('dashboard')
+      // Track insights viewed when dashboard is shown
+      analytics.trackInsightsViewed(approaches.length)
+    }, [approaches.length])
+  )
 
   // Load mission and insight on mount and subscribe to changes
   useEffect(() => {

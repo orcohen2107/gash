@@ -1,13 +1,22 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useCallback } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useFocusEffect } from '@react-navigation/native'
 import { BottomSheetModal, BottomSheetModalProvider } from '@gorhom/bottom-sheet'
 import { LogBottomSheet } from '@/components/log/LogBottomSheet'
 import { useLogStore } from '@/stores/useLogStore'
+import { analytics } from '@/lib/analytics'
 
 export default function LogScreen() {
   const bottomSheetRef = useRef<BottomSheetModal>(null)
   const snapPoints = [90]
   const { loadApproaches } = useLogStore()
+
+  // Track screen view
+  useFocusEffect(
+    useCallback(() => {
+      analytics.trackScreenView('log')
+    }, [])
+  )
 
   useEffect(() => {
     loadApproaches()
@@ -16,6 +25,7 @@ export default function LogScreen() {
   }, [loadApproaches])
 
   const handleOpenSheet = () => {
+    analytics.trackButtonClick('open_log_form', 'log')
     bottomSheetRef.current?.present()
   }
 
