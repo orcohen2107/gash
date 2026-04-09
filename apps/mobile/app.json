@@ -30,6 +30,13 @@
         {
           "origin": "%s.exp.direct"
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#ffffff"
+        }
       ]
     ],
     "experiments": {

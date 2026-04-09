@@ -4,8 +4,8 @@ import { supabaseAdmin } from '@/lib/supabase'
 import { runInsightsAgent } from '@/lib/agents/insights-agent'
 
 export async function GET(request: NextRequest) {
-  const user = await verifyAuth(request)
-  if (!user) {
+  const { userId } = await verifyAuth(request)
+  if (!userId) {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
@@ -16,8 +16,8 @@ export async function GET(request: NextRequest) {
     // Check if we have fresh insights (< 24h old)
     const { data: existing } = await supabaseAdmin
       .from('user_insights')
-      .select('id, insights, weekly_mission, last_analysis_at')
-      .eq('user_id', user.id)
+      .select('weekly_mission, last_analysis_at')
+      .eq('user_id', userId)
       .single()
 
     const now = new Date()
@@ -26,31 +26,28 @@ export async function GET(request: NextRequest) {
       const hoursSinceAnalysis = (now.getTime() - lastAnalysis.getTime()) / (1000 * 60 * 60)
       if (hoursSinceAnalysis < 24) {
         return NextResponse.json({
-          insights: existing.insights || [],
           weeklyMission: existing.weekly_mission,
         })
       }
     }
 
     // Generate new insights
-    const result = await runInsightsAgent(user.id)
+    const result = await runInsightsAgent(userId)
 
     // Save to database
     if (existing) {
       await supabaseAdmin
         .from('user_insights')
         .update({
-          insights: result.insights,
           weekly_mission: result.weeklyMission,
           last_analysis_at: now.toISOString(),
         })
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
     } else {
       await supabaseAdmin
         .from('user_insights')
         .insert({
-          user_id: user.id,
-          insights: result.insights,
+          user_id: userId,
           weekly_mission: result.weeklyMission,
           last_analysis_at: now.toISOString(),
         })

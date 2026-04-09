@@ -8,3 +8,6 @@ export function createServiceClient() {
     auth: { autoRefreshToken: false, persistSession: false },
   })
 }
+
+// Convenience singleton for server-only admin access
+export const supabaseAdmin = createServiceClient()

@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createApiClient } from '@gash/api-client'
 import { SERVER_URL, getAuthHeaders } from '@/lib/server'
 import { useLogStore } from './useLogStore'
+import { sendLocalNotification } from '@/lib/notifications'
 import type { ApproachType, InsightsResponse } from '@gash/types'
 
 const client = createApiClient({ serverUrl: SERVER_URL, getHeaders: getAuthHeaders })
@@ -99,6 +100,10 @@ export const useStatsStore = create<StatsStore>()(
             })
             const data = (await response.json()) as { streak: number; message: string }
             set({ streak: data.streak })
+            // Trigger notification for milestone streaks (7, 14, 21, etc.)
+            if (data.streak > 0 && data.streak % 7 === 0) {
+              sendLocalNotification(`🔥 רצף שבועי!`, `${data.streak} ימים רצופים — כל הכבוד!`)
+            }
             return data
           } catch (err) {
             console.error('Failed to increment streak:', err)

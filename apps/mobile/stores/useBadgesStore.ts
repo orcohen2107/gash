@@ -5,6 +5,7 @@ import { createApiClient } from '@gash/api-client'
 import { SERVER_URL, getAuthHeaders } from '@/lib/server'
 import { useLogStore } from './useLogStore'
 import { useStatsStore } from './useStatsStore'
+import { sendLocalNotification } from '@/lib/notifications'
 import type { Badge } from '@gash/constants'
 import { BADGES } from '@gash/constants'
 import type { ApproachType } from '@gash/types'
@@ -25,9 +26,11 @@ export interface Mission {
 interface BadgesStore {
   unlockedBadges: UnlockedBadge[]
   mission: Mission | null
+  missionsCompleted: number
   checkAndUnlockBadges: () => void
   isBadgeUnlocked: (badgeId: Badge['id']) => boolean
   fetchMission: () => Promise<Mission | null>
+  completeMission: () => Promise<void>
 }
 
 export const useBadgesStore = create<BadgesStore>()(
@@ -35,6 +38,7 @@ export const useBadgesStore = create<BadgesStore>()(
     (set, get) => ({
       unlockedBadges: [],
       mission: null,
+      missionsCompleted: 0,
 
       isBadgeUnlocked: (badgeId: Badge['id']) => {
         return get().unlockedBadges.some((b) => b.id === badgeId)
@@ -49,10 +53,29 @@ export const useBadgesStore = create<BadgesStore>()(
           })
           const mission = (await response.json()) as Mission
           set({ mission })
+          // Trigger notification for new mission
+          sendLocalNotification(`📋 משימה שבועית חדשה`, `${mission.title}`)
           return mission
         } catch (err) {
           console.error('Failed to fetch mission:', err)
           return null
+        }
+      },
+
+      completeMission: async () => {
+        try {
+          const response = await fetch(`${SERVER_URL}/api/coach/mission`, {
+            method: 'POST',
+            headers: await getAuthHeaders(),
+            body: JSON.stringify({ action: 'complete' }),
+          })
+          const data = (await response.json()) as { success: boolean }
+          if (data.success) {
+            // Increment local missionsCompleted counter
+            set({ missionsCompleted: get().missionsCompleted + 1 })
+          }
+        } catch (err) {
+          console.error('Failed to complete mission:', err)
         }
       },
 
@@ -109,7 +132,7 @@ export const useBadgesStore = create<BadgesStore>()(
           },
           {
             id: 'savant',
-            condition: () => false, // TODO: Check completed missions count
+            condition: () => get().missionsCompleted >= 5,
           },
         ]
 
@@ -122,6 +145,8 @@ export const useBadgesStore = create<BadgesStore>()(
                 ...badgeData,
                 unlockedAt: new Date().toISOString(),
               })
+              // Trigger notification
+              sendLocalNotification(`🏆 תג חדש!`, `${badgeData.title} — ${badgeData.description}`)
             }
           }
         })
@@ -132,7 +157,7 @@ export const useBadgesStore = create<BadgesStore>()(
     {
       name: 'gash-badges',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({ unlockedBadges: state.unlockedBadges, mission: state.mission }),
+      partialize: (state) => ({ unlockedBadges: state.unlockedBadges, mission: state.mission, missionsCompleted: state.missionsCompleted }),
     }
   )
 )

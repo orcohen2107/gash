@@ -3,8 +3,8 @@ import { verifyAuth } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 
 export async function POST(request: NextRequest) {
-  const user = await verifyAuth(request)
-  if (!user) {
+  const { userId } = await verifyAuth(request)
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       const { data: lastApproach } = await supabaseAdmin
         .from('approaches')
         .select('date')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('date', { ascending: false })
         .limit(1)
 
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
       const { data: userInsights } = await supabaseAdmin
         .from('user_insights')
         .select('streak, last_approach_date')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .single()
 
       const today = new Date().toISOString().split('T')[0]
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       await supabaseAdmin
         .from('user_insights')
         .upsert({
-          user_id: user.id,
+          user_id: userId,
           streak: newStreak,
           last_approach_date: today,
         })
