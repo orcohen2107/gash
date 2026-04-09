@@ -8,6 +8,7 @@ import { runApproachFeedbackAgent } from '@/lib/agents/approachFeedback'
 import { runDebriefAgent } from '@/lib/agents/debrief'
 import { detectIntent } from '@/lib/agents/router'
 import { handleApiError } from '@/lib/apiError'
+import { createRateLimitResponse } from '@/lib/rateLimit'
 import {
   CoachRequestSchema,
   ApproachFeedbackRequestSchema,
@@ -19,6 +20,12 @@ import type { CoachRequest, ApproachFeedbackRequest, DebriefRequest } from '@gas
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await verifyAuth(request)
+
+    // Rate limit: 10 requests per minute for coach endpoints
+    const rateLimitResponse = createRateLimitResponse(`coach:${userId}`, {
+      limit: 10,
+    })
+    if (rateLimitResponse) return rateLimitResponse
     const body = await request.json()
     const supabase = createServiceClient()
     const ctx = await buildUserContext(userId, supabase)
