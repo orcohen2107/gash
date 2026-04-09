@@ -1,16 +1,134 @@
-import { View, Text, StyleSheet } from 'react-native'
+import React, { useEffect, useState } from 'react'
+import { View, ScrollView, StyleSheet, Text } from 'react-native'
+import { useStatsStore } from '@/stores/useStatsStore'
+import { useLogStore } from '@/stores/useLogStore'
+import KPICard from '@/components/dashboard/KPICard'
+import InsightCard from '@/components/dashboard/InsightCard'
+import ChemistryLineChart from '@/components/dashboard/ChemistryLineChart'
+import SuccessBarChart from '@/components/dashboard/SuccessBarChart'
+
+const APPROACH_TYPE_LABELS: Record<string, string> = {
+  direct: 'ישיר',
+  situational: 'סיטואטיבי',
+  humor: 'הומור',
+  online: 'אונליין',
+}
 
 export default function DashboardScreen() {
+  const { totalApproaches, successRate, avgChemistry, topApproachType } = useStatsStore()
+  const { approaches } = useLogStore()
+  const [insight, setInsight] = useState<string>('')
+  const [loadingInsight, setLoadingInsight] = useState(false)
+
+  // Load insight on mount and subscribe to changes
+  useEffect(() => {
+    loadInsight()
+    const unsubscribe = useLogStore.getState().subscribeToChanges()
+    return unsubscribe
+  }, [])
+
+  const loadInsight = async () => {
+    setLoadingInsight(true)
+    try {
+      const { insights } = await useStatsStore.getState().fetchInsights()
+      const firstInsight = insights?.[0] || 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
+      setInsight(firstInsight)
+    } catch (err) {
+      console.error('Failed to load insight:', err)
+      setInsight('המשך לתעד גישות כדי לקבל תובנות מ-AI')
+    } finally {
+      setLoadingInsight(false)
+    }
+  }
+
+  if (approaches.length === 0) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyTitle}>דשבורד</Text>
+        <Text style={styles.emptyText}>
+          התחל לתעד גישות כדי לראות ניתוחים ותובנות
+        </Text>
+      </View>
+    )
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>לוח הבקרה</Text>
-      <Text style={styles.subtitle}>הנתונים והגרפים שלך יופיעו כאן</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>דשבורד</Text>
+      </View>
+
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* KPI Cards Grid */}
+        <View style={styles.kpiGrid}>
+          <KPICard label="סה״כ גישות" value={totalApproaches} icon="📊" />
+          <KPICard label="שיעור הצלחה" value={`${successRate}%`} icon="✅" />
+          <KPICard label="ממוצע כימיה" value={avgChemistry} icon="⚡" />
+          <KPICard
+            label="סוג מוביל"
+            value={topApproachType ? APPROACH_TYPE_LABELS[topApproachType] : '—'}
+            icon="🎯"
+          />
+        </View>
+
+        {/* Charts */}
+        <ChemistryLineChart />
+        <SuccessBarChart />
+
+        {/* Insight Card */}
+        <InsightCard insight={insight} loading={loadingInsight} />
+      </ScrollView>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff' },
-  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
-  subtitle: { fontSize: 14, color: '#6B7280', textAlign: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: '#0e0e0e',
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1a1a1a',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#ffffff',
+    textAlign: 'right',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingVertical: 12,
+  },
+  kpiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 4,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: '#0e0e0e',
+  },
+  emptyTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginBottom: 16,
+    textAlign: 'right',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#adaaaa',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 })
