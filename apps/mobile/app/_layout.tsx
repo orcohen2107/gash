@@ -1,15 +1,18 @@
 import { useEffect } from 'react'
 import { I18nManager, View } from 'react-native'
-import { Slot, Redirect } from 'expo-router'
+import { Slot, Redirect, useRouter } from 'expo-router'
 import * as Updates from 'expo-updates'
+import * as Notifications from 'expo-notifications'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { OfflineBanner } from '@/components/OfflineBanner'
 import { useNetworkStatus, isOffline } from '@/lib/useNetworkStatus'
+import { registerForPushNotifications, setupNotificationResponseHandler } from '@/lib/notifications'
 import { supabase } from '@/lib/supabase'
 
 export default function RootLayout() {
+  const router = useRouter()
   const rtlInitialized = useSettingsStore((s) => s.rtlInitialized)
   const setRtlInitialized = useSettingsStore((s) => s.setRtlInitialized)
 
@@ -46,6 +49,33 @@ export default function RootLayout() {
 
     return () => subscription.unsubscribe()
   }, [setSession, setLoading])
+
+  // Register for push notifications when user is authenticated
+  useEffect(() => {
+    if (!session) return
+
+    ;(async () => {
+      try {
+        await registerForPushNotifications()
+      } catch (err) {
+        console.error('Failed to register for push notifications:', err)
+      }
+    })()
+
+    // Setup notification response handler for deep linking
+    const notificationResponseSubscription = setupNotificationResponseHandler((response) => {
+      const { data } = response.notification.request.content
+
+      // Handle deep linking based on notification type
+      if (data?.screen) {
+        router.push(data.screen)
+      }
+    })
+
+    return () => {
+      notificationResponseSubscription.remove()
+    }
+  }, [session, router])
 
   if (loading) {
     return null
