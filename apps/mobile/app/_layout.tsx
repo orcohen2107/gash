@@ -1,9 +1,12 @@
 import { useEffect } from 'react'
-import { I18nManager } from 'react-native'
+import { I18nManager, View } from 'react-native'
 import { Slot, Redirect } from 'expo-router'
 import * as Updates from 'expo-updates'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { OfflineBanner } from '@/components/OfflineBanner'
+import { useNetworkStatus, isOffline } from '@/lib/useNetworkStatus'
 import { supabase } from '@/lib/supabase'
 
 export default function RootLayout() {
@@ -14,6 +17,9 @@ export default function RootLayout() {
   const loading = useAuthStore((s) => s.loading)
   const setSession = useAuthStore((s) => s.setSession)
   const setLoading = useAuthStore((s) => s.setLoading)
+
+  const networkState = useNetworkStatus()
+  const offline = isOffline(networkState)
 
   useEffect(() => {
     // RTL must be forced before any component renders on first launch.
@@ -49,5 +55,12 @@ export default function RootLayout() {
     return <Redirect href="/auth" />
   }
 
-  return <Slot />
+  return (
+    <ErrorBoundary>
+      <View style={{ flex: 1 }}>
+        <OfflineBanner isOffline={offline} />
+        <Slot />
+      </View>
+    </ErrorBoundary>
+  )
 }
