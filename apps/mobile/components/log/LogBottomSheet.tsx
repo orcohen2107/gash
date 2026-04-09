@@ -139,6 +139,19 @@ export function LogBottomSheet({}: LogBottomSheetProps) {
   const handleDateChange = (event: any, date?: Date) => {
     setShowDatePicker(false)
     if (date) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      // Don't allow future dates
+      if (date > today) {
+        Toast.show({
+          type: 'error',
+          text1: 'תאריך לא תקין',
+          text2: 'לא ניתן לבחור תאריכים עתידיים',
+        })
+        return
+      }
+
       setSelectedDate(date)
       // Update form value through onChange
     }
@@ -225,7 +238,10 @@ export function LogBottomSheet({}: LogBottomSheetProps) {
 
         {/* Opener Dropdown (depends on approach_type) */}
         <View style={styles.fieldContainer}>
-          <Text style={styles.label}>פתיחה</Text>
+          <View style={styles.labelRow}>
+            <Text style={styles.label}>פתיחה</Text>
+            <Text style={styles.charCount}>{(watch('opener') ?? '').length}/200</Text>
+          </View>
           <Controller
             control={control}
             name="opener"
@@ -367,10 +383,20 @@ const styles = StyleSheet.create({
   fieldContainer: {
     gap: 8,
   },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   label: {
     fontSize: 12,
     color: '#adaaaa',
     textAlign: 'right',
+  },
+  charCount: {
+    fontSize: 11,
+    color: '#666666',
+    textAlign: 'left',
   },
   input: {
     backgroundColor: '#20201f',

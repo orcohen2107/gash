@@ -21,6 +21,22 @@ export const CreateApproachSchema = ApproachSchema.omit({
   id: true,
   user_id: true,
   created_at: true,
+}).extend({
+  // Tighten validation for mobile form fields
+  date: z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine((date) => {
+      const today = new Date().toISOString().split('T')[0]
+      return date <= today
+    }, 'לא ניתן לבחור תאריכים עתידיים'),
+  opener: z.string().nullable().refine(
+    (val) => val === null || val === '' || val.length <= 200,
+    'פתיחה חייבת להיות קצרה מ-200 תווים'
+  ),
+  chemistry_score: z.number()
+    .min(1, 'כימיה חייבת להיות בין 1 ל-10')
+    .max(10, 'כימיה חייבת להיות בין 1 ל-10')
+    .nullable(),
 })
 
 export const ChatMessageSchema = z.object({
