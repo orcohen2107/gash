@@ -2,13 +2,17 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createApiClient } from '@gash/api-client'
-import { SERVER_URL, getAuthHeaders } from '@/lib/server'
+import { SERVER_URL, getAuthHeaders, handleAuthError } from '@/lib/server'
 import { cache, CACHE_PRESETS } from '@/lib/cache'
 import { useLogStore } from './useLogStore'
 import { sendLocalNotification } from '@/lib/notifications'
 import type { ApproachType, InsightsResponse } from '@gash/types'
 
-const client = createApiClient({ serverUrl: SERVER_URL, getHeaders: getAuthHeaders })
+const client = createApiClient({
+  serverUrl: SERVER_URL,
+  getHeaders: getAuthHeaders,
+  onAuthError: handleAuthError,
+})
 
 interface StatsStore {
   streak: number
@@ -16,6 +20,7 @@ interface StatsStore {
   successRate: number
   avgChemistry: number
   topApproachType: ApproachType | null
+  isLoadingInsights: boolean
   fetchInsights: () => Promise<InsightsResponse>
   incrementStreak: () => Promise<{ streak: number; message: string }>
   computeStats: () => void
@@ -40,6 +45,7 @@ export const useStatsStore = create<StatsStore>()(
         successRate: 0,
         avgChemistry: 0,
         topApproachType: null,
+        isLoadingInsights: false,
 
         computeStats: () => {
           const approaches = useLogStore.getState().approaches
@@ -82,12 +88,14 @@ export const useStatsStore = create<StatsStore>()(
         },
 
         fetchInsights: async (): Promise<InsightsResponse> => {
+          set({ isLoadingInsights: true })
           try {
             // Check cache first (stale-while-revalidate pattern)
             const cachedWithMeta = await cache.getWithMetadata<InsightsResponse>('insights')
 
             if (cachedWithMeta.data && !cachedWithMeta.isExpired) {
               // Return fresh cached data
+              set({ isLoadingInsights: false })
               return cachedWithMeta.data
             }
 
@@ -98,9 +106,11 @@ export const useStatsStore = create<StatsStore>()(
             // Cache for 1 hour
             await cache.set('insights', insights, CACHE_PRESETS.LONG)
 
+            set({ isLoadingInsights: false })
             return insights
           } catch (err) {
             console.error('Failed to fetch insights:', err)
+            set({ isLoadingInsights: false })
 
             // Try to return stale cache if available
             const cachedWithMeta = await cache.getWithMetadata<InsightsResponse>('insights')

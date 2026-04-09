@@ -1,18 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { verifyAuth } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendPushNotificationToUser } from '@/lib/pushNotifications'
+import { handleApiError } from '@/lib/apiError'
+
+const StreakRequestSchema = z.object({
+  action: z.enum(['increment']),
+})
 
 export async function POST(request: NextRequest) {
-  const auth = await verifyAuth(request)
-  if (!auth) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-
-  const userId = auth.userId
-
   try {
-    const { action } = await request.json()
+    const auth = await verifyAuth(request)
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const userId = auth.userId
+
+    const body = await request.json()
+    const validated = StreakRequestSchema.parse(body)
+    const { action } = validated
 
     if (action === 'increment') {
       // Get user's last approach date
@@ -94,8 +102,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
-  } catch (err) {
-    console.error('Streak error:', err)
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 })
+  } catch (error) {
+    return handleApiError(error)
   }
 }

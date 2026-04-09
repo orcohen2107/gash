@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createApiClient } from '@gash/api-client'
-import { SERVER_URL, getAuthHeaders } from '@/lib/server'
+import { SERVER_URL, getAuthHeaders, handleAuthError } from '@/lib/server'
 import { cache, CACHE_PRESETS } from '@/lib/cache'
 import { useLogStore } from './useLogStore'
 import { useStatsStore } from './useStatsStore'
@@ -11,7 +11,11 @@ import type { Badge } from '@gash/constants'
 import { BADGES } from '@gash/constants'
 import type { ApproachType } from '@gash/types'
 
-const client = createApiClient({ serverUrl: SERVER_URL, getHeaders: getAuthHeaders })
+const client = createApiClient({
+  serverUrl: SERVER_URL,
+  getHeaders: getAuthHeaders,
+  onAuthError: handleAuthError,
+})
 
 interface UnlockedBadge extends Badge {
   unlockedAt: string
@@ -28,6 +32,7 @@ interface BadgesStore {
   unlockedBadges: UnlockedBadge[]
   mission: Mission | null
   missionsCompleted: number
+  isLoadingMission: boolean
   checkAndUnlockBadges: () => void
   isBadgeUnlocked: (badgeId: Badge['id']) => boolean
   fetchMission: () => Promise<Mission | null>
@@ -40,18 +45,21 @@ export const useBadgesStore = create<BadgesStore>()(
       unlockedBadges: [],
       mission: null,
       missionsCompleted: 0,
+      isLoadingMission: false,
 
       isBadgeUnlocked: (badgeId: Badge['id']) => {
         return get().unlockedBadges.some((b) => b.id === badgeId)
       },
 
       fetchMission: async () => {
+        set({ isLoadingMission: true })
         try {
           // Check cache first (stale-while-revalidate pattern)
           const cachedWithMeta = await cache.getWithMetadata<Mission>('mission')
 
           if (cachedWithMeta.data && !cachedWithMeta.isExpired) {
             // Return fresh cached data
+            set({ isLoadingMission: false })
             return cachedWithMeta.data
           }
 
@@ -62,7 +70,7 @@ export const useBadgesStore = create<BadgesStore>()(
             body: JSON.stringify({}),
           })
           const mission = (await response.json()) as Mission
-          set({ mission })
+          set({ mission, isLoadingMission: false })
 
           // Cache for 24 hours (mission updates daily)
           await cache.set('mission', mission, CACHE_PRESETS.VERY_LONG)
@@ -72,6 +80,7 @@ export const useBadgesStore = create<BadgesStore>()(
           return mission
         } catch (err) {
           console.error('Failed to fetch mission:', err)
+          set({ isLoadingMission: false })
 
           // Try to return stale cache if available
           const cachedWithMeta = await cache.getWithMetadata<Mission>('mission')

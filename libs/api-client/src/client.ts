@@ -21,6 +21,14 @@ import type {
 interface ApiClientConfig {
   serverUrl: string
   getHeaders: () => Promise<HeadersInit>
+  onAuthError?: () => Promise<void>
+}
+
+class UnauthorizedError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'UnauthorizedError'
+  }
 }
 
 async function post<TReq, TRes>(
@@ -35,6 +43,13 @@ async function post<TReq, TRes>(
     body: JSON.stringify(body),
   })
 
+  if (response.status === 401) {
+    if (config.onAuthError) {
+      await config.onAuthError()
+    }
+    throw new UnauthorizedError('Authentication failed. Please sign in again.')
+  }
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: { message: response.statusText } }))
     throw new Error(error.error?.message ?? response.statusText)
@@ -46,6 +61,13 @@ async function post<TReq, TRes>(
 async function get<TRes>(config: ApiClientConfig, path: string): Promise<TRes> {
   const headers = await config.getHeaders()
   const response = await fetch(`${config.serverUrl}${path}`, { method: 'GET', headers })
+
+  if (response.status === 401) {
+    if (config.onAuthError) {
+      await config.onAuthError()
+    }
+    throw new UnauthorizedError('Authentication failed. Please sign in again.')
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: { message: response.statusText } }))
@@ -67,6 +89,13 @@ async function put<TReq, TRes>(
     body: JSON.stringify(body),
   })
 
+  if (response.status === 401) {
+    if (config.onAuthError) {
+      await config.onAuthError()
+    }
+    throw new UnauthorizedError('Authentication failed. Please sign in again.')
+  }
+
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: { message: response.statusText } }))
     throw new Error(error.error?.message ?? response.statusText)
@@ -78,6 +107,14 @@ async function put<TReq, TRes>(
 async function del(config: ApiClientConfig, path: string): Promise<void> {
   const headers = await config.getHeaders()
   const response = await fetch(`${config.serverUrl}${path}`, { method: 'DELETE', headers })
+
+  if (response.status === 401) {
+    if (config.onAuthError) {
+      await config.onAuthError()
+    }
+    throw new UnauthorizedError('Authentication failed. Please sign in again.')
+  }
+
   if (!response.ok && response.status !== 204) {
     throw new Error(`DELETE ${path} failed: ${response.statusText}`)
   }

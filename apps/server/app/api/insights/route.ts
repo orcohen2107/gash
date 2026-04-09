@@ -3,6 +3,8 @@ import { verifyAuth } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { runInsightsAgent } from '@/lib/agents/insights-agent'
 import { sendPushNotificationToUser } from '@/lib/pushNotifications'
+import { createRateLimitResponse } from '@/lib/rateLimit'
+import { handleApiError } from '@/lib/apiError'
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAuth(request)
@@ -14,6 +16,12 @@ export async function GET(request: NextRequest) {
   }
 
   const userId = auth.userId
+
+  // Rate limit: 5 requests per minute for insights (since it calls Claude)
+  const rateLimitResponse = createRateLimitResponse(`insights:${userId}`, {
+    limit: 5,
+  })
+  if (rateLimitResponse) return rateLimitResponse
 
   try {
     // Check if we have fresh insights (< 24h old)
@@ -73,11 +81,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(result)
-  } catch (err) {
-    console.error('Insights generation failed:', err)
-    return NextResponse.json(
-      { error: 'Failed to generate insights' },
-      { status: 500 }
-    )
+  } catch (error) {
+    return handleApiError(error)
   }
 }
