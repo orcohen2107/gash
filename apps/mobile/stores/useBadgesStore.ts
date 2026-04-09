@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createApiClient } from '@gash/api-client'
-import { SERVER_URL, getAuthHeaders } from '@/lib/server'
+import { SERVER_URL, getAuthHeaders, handleAuthError } from '@/lib/server'
 import { useLogStore } from './useLogStore'
 import { useStatsStore } from './useStatsStore'
 import { sendLocalNotification } from '@/lib/notifications'
@@ -10,7 +10,11 @@ import type { Badge } from '@gash/constants'
 import { BADGES } from '@gash/constants'
 import type { ApproachType } from '@gash/types'
 
-const client = createApiClient({ serverUrl: SERVER_URL, getHeaders: getAuthHeaders })
+const client = createApiClient({
+  serverUrl: SERVER_URL,
+  getHeaders: getAuthHeaders,
+  onAuthError: handleAuthError,
+})
 
 interface UnlockedBadge extends Badge {
   unlockedAt: string

@@ -1,10 +1,14 @@
 import { create } from 'zustand'
 import Toast from 'react-native-toast-message'
 import { createApiClient } from '@gash/api-client'
-import { SERVER_URL, getAuthHeaders } from '@/lib/server'
+import { SERVER_URL, getAuthHeaders, handleAuthError } from '@/lib/server'
 import type { ChatMessage } from '@gash/types'
 
-const client = createApiClient({ serverUrl: SERVER_URL, getHeaders: getAuthHeaders })
+const client = createApiClient({
+  serverUrl: SERVER_URL,
+  getHeaders: getAuthHeaders,
+  onAuthError: handleAuthError,
+})
 
 const MAX_RETRIES = 3
 const RETRY_DELAY = 1000 // ms

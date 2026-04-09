@@ -1,3 +1,4 @@
+import { useAuthStore } from '@/stores/useAuthStore'
 import { supabase } from './supabase'
 import { SERVER_URL_DEFAULT } from '@gash/constants'
 
@@ -10,6 +11,11 @@ export async function getAuthHeaders(): Promise<HeadersInit> {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${session.access_token}`,
   }
+}
+
+export async function handleAuthError(): Promise<void> {
+  // Sign out and redirect to auth
+  await useAuthStore.getState().signOut()
 }
 
 export { SERVER_URL }
