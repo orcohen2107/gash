@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { verifyAuth } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { runMissionAgent } from '@/lib/agents/mission-agent'
+import { handleApiError } from '@/lib/apiError'
 import type { MissionResponse } from '@/lib/agents/mission-agent'
 import type { ApproachType } from '@gash/types'
 
-export async function POST(request: NextRequest) {
-  const { userId } = await verifyAuth(request)
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+const MissionRequestSchema = z.object({
+  action: z.enum(['get', 'complete']).optional().default('get'),
+})
 
+export async function POST(request: NextRequest) {
   try {
+    const { userId } = await verifyAuth(request)
+    if (!userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await request.json().catch(() => ({}))
-    const action = body.action || 'get'
+    const validated = MissionRequestSchema.parse(body)
+    const action = validated.action
 
     // Action: get or complete
     if (action === 'complete') {
@@ -138,16 +145,7 @@ export async function POST(request: NextRequest) {
       })
 
     return NextResponse.json(mission)
-  } catch (err) {
-    console.error('Mission generation error:', err)
-    return NextResponse.json(
-      {
-        title: 'משימה שבועית',
-        description: 'שדר לפחות 3 גישות השבוע',
-        target: 3,
-        target_approach_type: 'direct',
-      } as MissionResponse,
-      { status: 500 }
-    )
+  } catch (error) {
+    return handleApiError(error)
   }
 }

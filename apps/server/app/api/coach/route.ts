@@ -8,6 +8,12 @@ import { runApproachFeedbackAgent } from '@/lib/agents/approachFeedback'
 import { runDebriefAgent } from '@/lib/agents/debrief'
 import { detectIntent } from '@/lib/agents/router'
 import { handleApiError } from '@/lib/apiError'
+import {
+  CoachRequestSchema,
+  ApproachFeedbackRequestSchema,
+  DebriefRequestSchema,
+  BoostRequestSchema,
+} from '@gash/schemas'
 import type { CoachRequest, ApproachFeedbackRequest, DebriefRequest } from '@gash/types'
 
 export async function POST(request: NextRequest) {
@@ -17,22 +23,28 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceClient()
     const ctx = await buildUserContext(userId, supabase)
 
+    // Validate request body based on type
     if (body.type === 'approach-feedback') {
-      const result = await runApproachFeedbackAgent(body as ApproachFeedbackRequest, ctx)
+      const validated = ApproachFeedbackRequestSchema.parse(body)
+      const result = await runApproachFeedbackAgent(validated as ApproachFeedbackRequest, ctx)
       return NextResponse.json(result)
     }
 
     if (body.type === 'debrief') {
-      const result = await runDebriefAgent(body as DebriefRequest, ctx)
+      const validated = DebriefRequestSchema.parse(body)
+      const result = await runDebriefAgent(validated as DebriefRequest, ctx)
       return NextResponse.json(result)
     }
 
     if (body.type === 'boost') {
-      const result = await runBoostAgent(body.situation, ctx)
+      const validated = BoostRequestSchema.parse(body)
+      const result = await runBoostAgent(validated.situation, ctx)
       return NextResponse.json(result)
     }
 
-    const coachReq = body as CoachRequest
+    // Default: coach request
+    const validated = CoachRequestSchema.parse(body)
+    const coachReq = validated as CoachRequest
     const lastUserMessage = coachReq.messages.findLast((m) => m.role === 'user')?.content ?? ''
     const intent = detectIntent(lastUserMessage)
 
