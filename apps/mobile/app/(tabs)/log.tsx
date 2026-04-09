@@ -11,6 +11,8 @@ export default function LogScreen() {
 
   useEffect(() => {
     loadApproaches()
+    const unsubscribe = useLogStore.getState().subscribeToChanges()
+    return unsubscribe
   }, [loadApproaches])
 
   const handleOpenSheet = () => {

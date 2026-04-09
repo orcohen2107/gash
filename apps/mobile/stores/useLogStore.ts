@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
 import { createApiClient } from '@gash/api-client'
 import { SERVER_URL, getAuthHeaders } from '@/lib/server'
+import { supabase } from '@/lib/supabase'
 import type { Approach } from '@gash/types'
 
 const client = createApiClient({ serverUrl: SERVER_URL, getHeaders: getAuthHeaders })
@@ -16,6 +17,7 @@ interface LogStore {
   updateApproach: (id: string, updates: Partial<Approach>) => Promise<void>
   deleteApproach: (id: string) => Promise<void>
   showFeedback: (feedback: string) => void
+  subscribeToChanges: () => () => void
 }
 
 export const useLogStore = create<LogStore>()(
@@ -122,6 +124,28 @@ export const useLogStore = create<LogStore>()(
           type: 'success',
           text1: feedback,
         })
+      },
+
+      subscribeToChanges: () => {
+        const channel = supabase
+          .channel('approaches')
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'approaches',
+            },
+            () => {
+              // Reload approaches on any change
+              get().loadApproaches()
+            }
+          )
+          .subscribe()
+
+        return () => {
+          supabase.removeChannel(channel)
+        }
       },
     }),
     {

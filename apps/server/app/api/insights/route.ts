@@ -1,40 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuth } from '@/lib/auth'
-import { createServiceClient } from '@/lib/supabase'
-import { runInsightsAgent } from '@/lib/agents/insights'
-import { handleApiError } from '@/lib/apiError'
-import { INSIGHTS_REFRESH_HOURS } from '@gash/constants'
+import { supabaseAdmin } from '@/lib/supabase'
+import { runInsightsAgent } from '@/lib/agents/insights-agent'
 
 export async function GET(request: NextRequest) {
-  try {
-    const { userId } = await verifyAuth(request)
-    const supabase = createServiceClient()
+  const user = await verifyAuth(request)
+  if (!user) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    )
+  }
 
-    const { data: existing } = await supabase
+  try {
+    // Check if we have fresh insights (< 24h old)
+    const { data: existing } = await supabaseAdmin
       .from('user_insights')
-      .select('*')
-      .eq('user_id', userId)
+      .select('id, insights, weekly_mission, last_analysis_at')
+      .eq('user_id', user.id)
       .single()
 
-    if (existing?.last_analysis_at) {
+    const now = new Date()
+    if (existing && existing.last_analysis_at) {
       const lastAnalysis = new Date(existing.last_analysis_at)
-      const hoursSince = (Date.now() - lastAnalysis.getTime()) / (1000 * 60 * 60)
-      if (hoursSince < INSIGHTS_REFRESH_HOURS) {
-        return NextResponse.json({ insights: existing })
+      const hoursSinceAnalysis = (now.getTime() - lastAnalysis.getTime()) / (1000 * 60 * 60)
+      if (hoursSinceAnalysis < 24) {
+        return NextResponse.json({
+          insights: existing.insights || [],
+          weeklyMission: existing.weekly_mission,
+        })
       }
     }
 
-    const fresh = await runInsightsAgent(userId, supabase)
+    // Generate new insights
+    const result = await runInsightsAgent(user.id)
 
-    await supabase.from('user_insights').upsert({
-      user_id: userId,
-      weekly_mission: fresh.weeklyMission,
-      last_analysis_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+    // Save to database
+    if (existing) {
+      await supabaseAdmin
+        .from('user_insights')
+        .update({
+          insights: result.insights,
+          weekly_mission: result.weeklyMission,
+          last_analysis_at: now.toISOString(),
+        })
+        .eq('user_id', user.id)
+    } else {
+      await supabaseAdmin
+        .from('user_insights')
+        .insert({
+          user_id: user.id,
+          insights: result.insights,
+          weekly_mission: result.weeklyMission,
+          last_analysis_at: now.toISOString(),
+        })
+    }
 
-    return NextResponse.json({ insights: fresh })
-  } catch (error) {
-    return handleApiError(error)
+    return NextResponse.json(result)
+  } catch (err) {
+    console.error('Insights generation failed:', err)
+    return NextResponse.json(
+      { error: 'Failed to generate insights' },
+      { status: 500 }
+    )
   }
 }
