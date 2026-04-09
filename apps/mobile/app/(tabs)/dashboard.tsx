@@ -18,38 +18,28 @@ const APPROACH_TYPE_LABELS: Record<string, string> = {
 
 export default function DashboardScreen() {
   const mission = useBadgesStore((state) => state.mission)
+  const isLoadingMission = useBadgesStore((state) => state.isLoadingMission)
   const fetchMission = useBadgesStore((state) => state.fetchMission)
-  const { totalApproaches, successRate, avgChemistry, topApproachType } = useStatsStore()
+  const { totalApproaches, successRate, avgChemistry, topApproachType, isLoadingInsights, fetchInsights } = useStatsStore()
   const { approaches } = useLogStore()
-  const [missionLoading, setMissionLoading] = useState(false)
   const [insight, setInsight] = useState<string>('')
-  const [loadingInsight, setLoadingInsight] = useState(false)
 
   // Load mission and insight on mount and subscribe to changes
   useEffect(() => {
-    const loadMission = async () => {
-      setMissionLoading(true)
-      await fetchMission()
-      setMissionLoading(false)
-    }
-    loadMission()
-
+    fetchMission()
     loadInsight()
     const unsubscribe = useLogStore.getState().subscribeToChanges()
     return unsubscribe
   }, [fetchMission])
 
   const loadInsight = async () => {
-    setLoadingInsight(true)
     try {
-      const insightsData = await useStatsStore.getState().fetchInsights()
+      const insightsData = await fetchInsights()
       const firstInsight = insightsData.insights?.[0] || 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
       setInsight(firstInsight)
     } catch (err) {
       console.error('Failed to load insight:', err)
       setInsight('המשך לתעד גישות כדי לקבל תובנות מ-AI')
-    } finally {
-      setLoadingInsight(false)
     }
   }
 
@@ -72,7 +62,7 @@ export default function DashboardScreen() {
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         {/* Mission Card */}
-        <MissionCard mission={mission} loading={missionLoading} />
+        <MissionCard mission={mission} loading={isLoadingMission} />
 
         {/* KPI Cards Grid */}
         <View style={styles.kpiGrid}>
@@ -91,7 +81,7 @@ export default function DashboardScreen() {
         <SuccessBarChart />
 
         {/* Insight Card */}
-        <InsightCard insight={insight} loading={loadingInsight} />
+        <InsightCard insight={insight} loading={isLoadingInsights} />
       </ScrollView>
     </View>
   )

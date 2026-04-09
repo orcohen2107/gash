@@ -2,12 +2,16 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createApiClient } from '@gash/api-client'
-import { SERVER_URL, getAuthHeaders } from '@/lib/server'
+import { SERVER_URL, getAuthHeaders, handleAuthError } from '@/lib/server'
 import { useLogStore } from './useLogStore'
 import { sendLocalNotification } from '@/lib/notifications'
 import type { ApproachType, InsightsResponse } from '@gash/types'
 
-const client = createApiClient({ serverUrl: SERVER_URL, getHeaders: getAuthHeaders })
+const client = createApiClient({
+  serverUrl: SERVER_URL,
+  getHeaders: getAuthHeaders,
+  onAuthError: handleAuthError,
+})
 
 interface StatsStore {
   streak: number
@@ -15,6 +19,7 @@ interface StatsStore {
   successRate: number
   avgChemistry: number
   topApproachType: ApproachType | null
+  isLoadingInsights: boolean
   fetchInsights: () => Promise<InsightsResponse>
   incrementStreak: () => Promise<{ streak: number; message: string }>
   computeStats: () => void
@@ -35,6 +40,7 @@ export const useStatsStore = create<StatsStore>()(
         successRate: 0,
         avgChemistry: 0,
         topApproachType: null,
+        isLoadingInsights: false,
 
         computeStats: () => {
           const approaches = useLogStore.getState().approaches
@@ -77,11 +83,14 @@ export const useStatsStore = create<StatsStore>()(
         },
 
         fetchInsights: async (): Promise<InsightsResponse> => {
+          set({ isLoadingInsights: true })
           try {
             const response = await client.insights.get()
+            set({ isLoadingInsights: false })
             return response.insights
           } catch (err) {
             console.error('Failed to fetch insights:', err)
+            set({ isLoadingInsights: false })
             return {
               insights: ['המשך לתעד גישות כדי לקבל תובנות מ-AI', '', ''],
               weeklyMission: { title: '', description: '', target: 0, targetType: '' },

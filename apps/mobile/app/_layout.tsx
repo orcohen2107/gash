@@ -4,6 +4,7 @@ import { Slot, Redirect } from 'expo-router'
 import * as Updates from 'expo-updates'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { supabase } from '@/lib/supabase'
 
 export default function RootLayout() {
@@ -49,5 +50,9 @@ export default function RootLayout() {
     return <Redirect href="/auth" />
   }
 
-  return <Slot />
+  return (
+    <ErrorBoundary>
+      <Slot />
+    </ErrorBoundary>
+  )
 }

@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { createApiClient } from '@gash/api-client'
-import { SERVER_URL, getAuthHeaders } from '@/lib/server'
+import { SERVER_URL, getAuthHeaders, handleAuthError } from '@/lib/server'
 import { useLogStore } from './useLogStore'
 import { useStatsStore } from './useStatsStore'
 import { sendLocalNotification } from '@/lib/notifications'
@@ -10,7 +10,11 @@ import type { Badge } from '@gash/constants'
 import { BADGES } from '@gash/constants'
 import type { ApproachType } from '@gash/types'
 
-const client = createApiClient({ serverUrl: SERVER_URL, getHeaders: getAuthHeaders })
+const client = createApiClient({
+  serverUrl: SERVER_URL,
+  getHeaders: getAuthHeaders,
+  onAuthError: handleAuthError,
+})
 
 interface UnlockedBadge extends Badge {
   unlockedAt: string
@@ -27,6 +31,7 @@ interface BadgesStore {
   unlockedBadges: UnlockedBadge[]
   mission: Mission | null
   missionsCompleted: number
+  isLoadingMission: boolean
   checkAndUnlockBadges: () => void
   isBadgeUnlocked: (badgeId: Badge['id']) => boolean
   fetchMission: () => Promise<Mission | null>
@@ -39,12 +44,14 @@ export const useBadgesStore = create<BadgesStore>()(
       unlockedBadges: [],
       mission: null,
       missionsCompleted: 0,
+      isLoadingMission: false,
 
       isBadgeUnlocked: (badgeId: Badge['id']) => {
         return get().unlockedBadges.some((b) => b.id === badgeId)
       },
 
       fetchMission: async () => {
+        set({ isLoadingMission: true })
         try {
           const response = await fetch(`${SERVER_URL}/api/coach/mission`, {
             method: 'POST',
@@ -52,12 +59,13 @@ export const useBadgesStore = create<BadgesStore>()(
             body: JSON.stringify({}),
           })
           const mission = (await response.json()) as Mission
-          set({ mission })
+          set({ mission, isLoadingMission: false })
           // Trigger notification for new mission
           sendLocalNotification(`📋 משימה שבועית חדשה`, `${mission.title}`)
           return mission
         } catch (err) {
           console.error('Failed to fetch mission:', err)
+          set({ isLoadingMission: false })
           return null
         }
       },

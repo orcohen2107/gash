@@ -2,9 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuth } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { runInsightsAgent } from '@/lib/agents/insights-agent'
+import { createRateLimitResponse } from '@/lib/rateLimit'
+import { handleApiError } from '@/lib/apiError'
 
 export async function GET(request: NextRequest) {
   const { userId } = await verifyAuth(request)
+
+  // Rate limit: 5 requests per minute for insights (since it calls Claude)
+  const rateLimitResponse = createRateLimitResponse(`insights:${userId}`, {
+    limit: 5,
+  })
+  if (rateLimitResponse) return rateLimitResponse
   if (!userId) {
     return NextResponse.json(
       { error: 'Unauthorized' },
@@ -54,11 +62,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json(result)
-  } catch (err) {
-    console.error('Insights generation failed:', err)
-    return NextResponse.json(
-      { error: 'Failed to generate insights' },
-      { status: 500 }
-    )
+  } catch (error) {
+    return handleApiError(error)
   }
 }

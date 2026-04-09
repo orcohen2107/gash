@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAuth } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
 import { handleApiError } from '@/lib/apiError'
+import { createRateLimitResponse } from '@/lib/rateLimit'
 import { CreateApproachSchema } from '@gash/schemas'
 import { runApproachFeedbackAgent } from '@/lib/agents/approachFeedback'
 import { buildUserContext } from '@/lib/agents/buildUserContext'
@@ -9,6 +10,12 @@ import { buildUserContext } from '@/lib/agents/buildUserContext'
 export async function GET(request: NextRequest) {
   try {
     const { userId } = await verifyAuth(request)
+
+    // Rate limit: 50 requests per minute for data endpoints
+    const rateLimitResponse = createRateLimitResponse(`approaches:${userId}:get`, {
+      limit: 50,
+    })
+    if (rateLimitResponse) return rateLimitResponse
     const supabase = createServiceClient()
 
     const url = new URL(request.url)
@@ -42,6 +49,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { userId } = await verifyAuth(request)
+
+    // Rate limit: 20 requests per minute for approach creation
+    const rateLimitResponse = createRateLimitResponse(`approaches:${userId}:post`, {
+      limit: 20,
+    })
+    if (rateLimitResponse) return rateLimitResponse
     const body = await request.json()
     const parsed = CreateApproachSchema.safeParse(body)
 
