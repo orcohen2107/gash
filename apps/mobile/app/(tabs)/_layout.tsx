@@ -1,8 +1,15 @@
 // app/(tabs)/_layout.tsx
-import { Tabs } from 'expo-router'
+import { Tabs, Redirect } from 'expo-router'
 import { Ionicons } from '@expo/vector-icons'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 export default function TabLayout() {
+  const session = useAuthStore((s) => s.session)
+  const loading = useAuthStore((s) => s.loading)
+
+  if (loading) return null
+  if (!session) return <Redirect href="/auth" />
+
   return (
     <Tabs
       screenOptions={{

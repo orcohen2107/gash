@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { I18nManager, View } from 'react-native'
-import { Slot, Redirect, useRouter, usePathname } from 'expo-router'
+import { Slot, useRouter, usePathname } from 'expo-router'
 import * as Updates from 'expo-updates'
 import * as Notifications from 'expo-notifications'
-import * as Sentry from '@sentry/react-native'
 import { PostHogProvider } from 'posthog-react-native'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useAuthStore } from '@/stores/useAuthStore'
@@ -13,16 +12,6 @@ import { useNetworkStatus, isOffline } from '@/lib/useNetworkStatus'
 import { registerForPushNotifications, setupNotificationResponseHandler } from '@/lib/notifications'
 import { analytics } from '@/lib/analytics'
 import { supabase } from '@/lib/supabase'
-
-// Initialize Sentry for error tracking
-if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-    enableInExpoDevelopment: true,
-    environment: process.env.NODE_ENV || 'production',
-    tracesSampleRate: 1.0,
-  })
-}
 
 function RootLayoutContent() {
   const router = useRouter()
@@ -103,14 +92,6 @@ function RootLayoutContent() {
       notificationResponseSubscription.remove()
     }
   }, [session, router])
-
-  if (loading) {
-    return null
-  }
-
-  if (!session) {
-    return <Redirect href="/auth" />
-  }
 
   return (
     <ErrorBoundary>
