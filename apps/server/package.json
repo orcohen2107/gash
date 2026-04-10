@@ -13,7 +13,7 @@
     "@gash/constants": "*",
     "@gash/schemas": "*",
     "@gash/types": "*",
-    "@sentry/node": "^8.0.0",
+    "@sentry/nextjs": "^8.0.0",
     "@supabase/supabase-js": "^2.102.1",
     "next": "^15.0.0",
     "react": "^19.0.0",
