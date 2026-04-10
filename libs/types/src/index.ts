@@ -1,5 +1,10 @@
 // Domain types
 
+export interface UserProfile {
+  name: string
+  age: number
+}
+
 export type ApproachType = 'direct' | 'situational' | 'humor' | 'online'
 export type FollowUpType = 'meeting' | 'text' | 'instagram' | 'nothing'
 

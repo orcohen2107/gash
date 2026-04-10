@@ -1,175 +1,200 @@
-import React, { useState } from 'react'
-import { View, StyleSheet, ScrollView, SafeAreaView, Text } from 'react-native'
+import React from 'react'
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native'
 import { useRouter } from 'expo-router'
-import { Controller, useForm } from 'react-hook-form'
-import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
-import Toast from 'react-native-toast-message'
-import { supabase } from '@/lib/supabase'
-import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
+import { LinearGradient } from 'expo-linear-gradient'
 
-const phoneSchema = z.object({
-  phone: z
-    .string()
-    .min(10, 'מספר לא חוקי')
-    .regex(
-      /^(\+972|0)?[5][0-9]{8}$/,
-      'מספר לא חוקי. תן מספר ישראלי.'
-    ),
-})
-
-type PhoneFormData = z.infer<typeof phoneSchema>
-
-export default function PhoneAuthScreen() {
+export default function WelcomeScreen() {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
-
-  const { control, handleSubmit } = useForm<PhoneFormData>({
-    resolver: zodResolver(phoneSchema),
-    defaultValues: { phone: '' },
-  })
-
-  const showValidationToast = () => {
-    Toast.show({
-      type: 'error',
-      text1: 'מספר לא חוקי. תן מספר ישראלי.',
-      position: 'bottom',
-      autoHide: true,
-      visibilityTime: 3000,
-    })
-  }
-
-  const handlePhoneSubmit = async (data: PhoneFormData) => {
-    setLoading(true)
-
-    try {
-      let normalizedPhone = data.phone.replace(/\s/g, '')
-      if (normalizedPhone.startsWith('0')) {
-        normalizedPhone = '+972' + normalizedPhone.slice(1)
-      } else if (!normalizedPhone.startsWith('+972')) {
-        normalizedPhone = '+972' + normalizedPhone
-      }
-
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: normalizedPhone,
-      })
-
-      if (error) {
-        const message = error.message.includes('phone')
-          ? 'מספר לא חוקי. תן מספר ישראלי.'
-          : 'בעיה בחיבור. בדוק את הרשת.'
-
-        Toast.show({
-          type: 'error',
-          text1: message,
-          position: 'bottom',
-          autoHide: true,
-          visibilityTime: 3000,
-        })
-      } else {
-        router.push({
-          pathname: '/auth/verify',
-          params: { phone: normalizedPhone },
-        })
-      }
-    } catch {
-      Toast.show({
-        type: 'error',
-        text1: 'בעיה בחיבור. בדוק את הרשת.',
-        position: 'bottom',
-        autoHide: true,
-        visibilityTime: 3000,
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.container}>
-          <Text style={styles.title}>כניסה חדשה</Text>
-
-          <Text style={styles.subtitle}>הכנס את מספר הטלפון שלך כדי להתחיל</Text>
-
-          <View style={styles.formSection}>
-            <Controller
-              control={control}
-              name="phone"
-              render={({ field: { value, onChange } }) => (
-                <Input
-                  placeholder="+972 50 123 4567"
-                  value={value}
-                  onChangeText={onChange}
-                  keyboardType="phone-pad"
-                />
-              )}
-            />
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.container}>
+        {/* Logo */}
+        <View style={styles.logoSection}>
+          <View style={styles.logoBox}>
+            <Text style={styles.logoText}>גאש</Text>
           </View>
-
-          <View style={styles.buttonSection}>
-            <Button
-              title={loading ? 'שליחה...' : 'שלח קוד'}
-              onPress={handleSubmit(handlePhoneSubmit, showValidationToast)}
-              disabled={loading}
-              loading={loading}
-            />
-          </View>
-
-          <Text style={styles.helpText}>אנחנו נשלח קוד אימות ל-SMS שלך</Text>
+          <Text style={styles.title}>גאש – המאמן האישי שלך</Text>
+          <Text style={styles.subtitle}>הדרך שלך להצליח עם נשים מתחילה כאן</Text>
         </View>
-      </ScrollView>
 
-      <Toast />
+        {/* Buttons */}
+        <View style={styles.buttonSection}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => router.push('/auth/login')}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={['#81ecff', '#00d4ec']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.primaryGradient}
+            >
+              <Text style={styles.primaryButtonText}>התחברות</Text>
+              <Text style={styles.chevron}>‹</Text>
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => router.push('/auth/register')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.secondaryButtonText}>הרשמה</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.footer}>
+          <View style={styles.divider}>
+            <View style={styles.line} />
+            <Text style={styles.dividerText}>THE DIGITAL ARCHITECT</Text>
+            <View style={styles.line} />
+          </View>
+
+          <View style={styles.features}>
+            <View style={styles.feature}>
+              <Text style={styles.featureIcon}>✅</Text>
+              <Text style={styles.featureLabel}>תוצאות מוכחות</Text>
+            </View>
+            <View style={styles.feature}>
+              <Text style={styles.featureIcon}>🎯</Text>
+              <Text style={styles.featureLabel}>AI מתקדם</Text>
+            </View>
+            <View style={styles.feature}>
+              <Text style={styles.featureIcon}>🔒</Text>
+              <Text style={styles.featureLabel}>אנונימיות מלאה</Text>
+            </View>
+          </View>
+        </View>
+      </View>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  safeContainer: {
+  safe: {
     flex: 1,
     backgroundColor: '#0e0e0e',
   },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
   container: {
+    flex: 1,
     paddingHorizontal: 24,
-    paddingVertical: 40,
+    justifyContent: 'space-between',
+    paddingBottom: 32,
+  },
+  logoSection: {
     alignItems: 'center',
+    paddingTop: 60,
+  },
+  logoBox: {
+    width: 96,
+    height: 96,
+    borderRadius: 22,
+    backgroundColor: '#1a1a1a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#2a2a2a',
+  },
+  logoText: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#81ecff',
+    fontFamily: 'Inter',
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
     color: '#ffffff',
-    marginBottom: 8,
-    fontFamily: 'Inter',
     textAlign: 'center',
+    fontFamily: 'Inter',
+    marginBottom: 12,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#adaaaa',
-    marginBottom: 32,
-    fontFamily: 'Inter',
     textAlign: 'center',
-    lineHeight: 24,
-  },
-  formSection: {
-    width: '100%',
-    marginBottom: 24,
+    fontFamily: 'Inter',
+    lineHeight: 22,
   },
   buttonSection: {
-    width: '100%',
-    marginBottom: 24,
+    gap: 16,
   },
-  helpText: {
-    fontSize: 12,
-    color: '#adaaaa',
-    textAlign: 'center',
+  primaryButton: {
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  primaryGradient: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
     fontFamily: 'Inter',
-    lineHeight: 18,
+  },
+  chevron: {
+    color: '#ffffff',
+    fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+  secondaryButton: {
+    height: 56,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#3a3a3a',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  secondaryButtonText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '600',
+    fontFamily: 'Inter',
+  },
+  footer: {
+    gap: 20,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#2a2a2a',
+  },
+  dividerText: {
+    color: '#555',
+    fontSize: 10,
+    fontFamily: 'Inter',
+    letterSpacing: 1.5,
+  },
+  features: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  feature: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  featureIcon: {
+    fontSize: 20,
+  },
+  featureLabel: {
+    color: '#888',
+    fontSize: 11,
+    fontFamily: 'Inter',
+    textAlign: 'center',
   },
 })

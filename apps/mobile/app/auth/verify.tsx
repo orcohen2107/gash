@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import Toast from 'react-native-toast-message'
 import { supabase } from '@/lib/supabase'
+import { SERVER_URL, getAuthHeaders } from '@/lib/server'
 import Input from '@/components/ui/Input'
 
 const otpSchema = z.object({
@@ -17,18 +18,18 @@ type OtpFormData = z.infer<typeof otpSchema>
 const TOAST_DURATION_MS = 3000
 
 function showErrorToast(message: string) {
-  Toast.show({
-    type: 'error',
-    text1: message,
-    position: 'bottom',
-    autoHide: true,
-    visibilityTime: TOAST_DURATION_MS,
-  })
+  Toast.show({ type: 'error', text1: message, position: 'bottom', autoHide: true, visibilityTime: TOAST_DURATION_MS })
 }
 
 export default function VerifyScreen() {
   const router = useRouter()
-  const { phone } = useLocalSearchParams<{ phone: string }>()
+  const { phone, name, age, isRegister } = useLocalSearchParams<{
+    phone: string
+    name?: string
+    age?: string
+    isRegister?: string
+  }>()
+
   const [loading, setLoading] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
 
@@ -39,6 +40,20 @@ export default function VerifyScreen() {
 
   const otpValue = watch('otp')
 
+  const saveProfile = useCallback(async () => {
+    if (!name || !age) return
+    try {
+      const headers = await getAuthHeaders()
+      await fetch(`${SERVER_URL}/api/user/profile`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ name, age: parseInt(age, 10) }),
+      })
+    } catch {
+      // Non-blocking — user can still proceed. Profile can be saved later.
+    }
+  }, [name, age])
+
   const submitOtp = useCallback(
     async (otp: string) => {
       if (!phone) {
@@ -47,21 +62,30 @@ export default function VerifyScreen() {
       }
 
       setLoading(true)
-
       try {
-        const { error, data: session } = await supabase.auth.verifyOtp({
-          phone,
-          token: otp,
-          type: 'sms',
-        })
+        // Dev bypass — מספר בדיקה + קוד קבוע
+        if (phone === '+972504322800' && otp === '123456') {
+          await supabase.auth.signInWithOtp({ phone })
+          const { error, data: session } = await supabase.auth.verifyOtp({ phone, token: otp, type: 'sms' })
+          if (error) {
+            showErrorToast('Dev bypass נכשל — הגדר Supabase test phone')
+            setValue('otp', '')
+            return
+          }
+          if (session) router.replace('/(tabs)/coach')
+          return
+        }
+
+        const { error, data: session } = await supabase.auth.verifyOtp({ phone, token: otp, type: 'sms' })
 
         if (error) {
-          const message = error.message.includes('Invalid')
-            ? 'קוד לא נכון. בדוק שוב.'
-            : 'בעיה בחיבור. בדוק את הרשת.'
-          showErrorToast(message)
+          showErrorToast(error.message.includes('Invalid') ? 'קוד לא נכון. בדוק שוב.' : 'בעיה בחיבור. בדוק את הרשת.')
           setValue('otp', '')
         } else if (session) {
+          // After registration — save name + age to server
+          if (isRegister === '1') {
+            await saveProfile()
+          }
           router.replace('/(tabs)/coach')
         }
       } catch {
@@ -70,7 +94,7 @@ export default function VerifyScreen() {
         setLoading(false)
       }
     },
-    [phone, router, setValue]
+    [phone, router, setValue, isRegister, saveProfile]
   )
 
   useEffect(() => {
@@ -84,22 +108,13 @@ export default function VerifyScreen() {
       showErrorToast('שגיאה: לא קיבלנו מספר טלפון')
       return
     }
-
     setResendLoading(true)
-
     try {
       const { error } = await supabase.auth.signInWithOtp({ phone })
-
       if (error) {
         showErrorToast('בעיה בשליחה. בדוק את הרשת.')
       } else {
-        Toast.show({
-          type: 'success',
-          text1: 'קוד חדש נשלח!',
-          position: 'bottom',
-          autoHide: true,
-          visibilityTime: 2000,
-        })
+        Toast.show({ type: 'success', text1: 'קוד חדש נשלח!', position: 'bottom', autoHide: true, visibilityTime: 2000 })
         setValue('otp', '')
       }
     } catch {
@@ -110,14 +125,15 @@ export default function VerifyScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+    <SafeAreaView style={styles.safe}>
+      <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.container}>
           <Text style={styles.title}>אימות קוד</Text>
+          <Text style={styles.subtitle}>
+            {isRegister === '1' && name ? `היי ${name}! ` : ''}נשלח קוד אל {phone}
+          </Text>
 
-          <Text style={styles.subtitle}>נשלח קוד אל {phone}</Text>
-
-          <View style={styles.formSection}>
+          <View style={styles.form}>
             <Controller
               control={control}
               name="otp"
@@ -125,10 +141,7 @@ export default function VerifyScreen() {
                 <Input
                   placeholder="0000"
                   value={value}
-                  onChangeText={(text) => {
-                    const digitsOnly = text.replace(/[^0-9]/g, '')
-                    onChange(digitsOnly.slice(0, 6))
-                  }}
+                  onChangeText={(text) => onChange(text.replace(/[^0-9]/g, '').slice(0, 6))}
                   keyboardType="numeric"
                   maxLength={6}
                   autoFocus
@@ -140,36 +153,23 @@ export default function VerifyScreen() {
 
           <Text style={styles.helpText}>קוד האימות הוא 4-6 ספרות</Text>
 
-          <View style={styles.resendSection}>
+          <View style={styles.resendRow}>
             <Text style={styles.resendLabel}>לא קיבלת קוד? </Text>
             <TouchableOpacity onPress={handleResend} disabled={resendLoading || loading}>
-              <Text style={styles.resendLink}>
-                {resendLoading ? 'שולח...' : 'שלח שוב'}
-              </Text>
+              <Text style={styles.resendLink}>{resendLoading ? 'שולח...' : 'שלח שוב'}</Text>
             </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
-
       <Toast />
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  safeContainer: {
-    flex: 1,
-    backgroundColor: '#0e0e0e',
-  },
-  scrollContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  container: {
-    paddingHorizontal: 24,
-    paddingVertical: 40,
-    alignItems: 'center',
-  },
+  safe: { flex: 1, backgroundColor: '#0e0e0e' },
+  scroll: { flexGrow: 1, justifyContent: 'center' },
+  container: { paddingHorizontal: 24, paddingVertical: 40, alignItems: 'center' },
   title: {
     fontSize: 28,
     fontWeight: '700',
@@ -186,34 +186,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 21,
   },
-  formSection: {
-    width: '100%',
-    marginBottom: 24,
-  },
-  helpText: {
-    fontSize: 12,
-    color: '#adaaaa',
-    textAlign: 'center',
-    fontFamily: 'Inter',
-    lineHeight: 18,
-    marginBottom: 32,
-  },
-  resendSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  resendLabel: {
-    fontSize: 12,
-    color: '#adaaaa',
-    fontFamily: 'Inter',
-  },
-  resendLink: {
-    fontSize: 12,
-    color: '#81ecff',
-    fontFamily: 'Inter',
-    fontWeight: '600',
-    textDecorationLine: 'underline',
-  },
+  form: { width: '100%', marginBottom: 24 },
+  helpText: { fontSize: 12, color: '#adaaaa', textAlign: 'center', fontFamily: 'Inter', marginBottom: 32 },
+  resendRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  resendLabel: { fontSize: 12, color: '#adaaaa', fontFamily: 'Inter' },
+  resendLink: { fontSize: 12, color: '#81ecff', fontFamily: 'Inter', fontWeight: '600', textDecorationLine: 'underline' },
 })
