@@ -1,0 +1,4 @@
+{
+  "monorepo": true,
+  "buildCommand": "npm install --workspaces --legacy-peer-deps"
+}
