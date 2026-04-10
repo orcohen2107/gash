@@ -72,12 +72,12 @@ export async function GET(request: NextRequest) {
         typeCounts[a.approach_type] = (typeCounts[a.approach_type] ?? 0) + 1
       })
 
-      const bestType = Object.entries(typeCounts).reduce((best, [type, count]) =>
-        count > (typeCounts[best] || 0) ? type : best
+      const bestType = Object.keys(typeCounts).reduce((best, type) =>
+        typeCounts[type] > (typeCounts[best] || 0) ? type : best
       )
 
-      const worstType = Object.entries(typeCounts).reduce((worst, [type, count]) =>
-        count < (typeCounts[worst] ?? Infinity) ? type : worst
+      const worstType = Object.keys(typeCounts).reduce((worst, type) =>
+        typeCounts[type] < (typeCounts[worst] ?? Infinity) ? type : worst
       )
 
       // Generate mission via Claude

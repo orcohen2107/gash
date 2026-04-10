@@ -1,5 +1,5 @@
 import { CLAUDE_MODEL_HAIKU } from '@gash/constants'
-import { callClaudeJSON } from '../claude'
+import { callClaude } from '../claude'
 import type { ApproachType } from '@gash/types'
 
 interface UserContext {
@@ -36,7 +36,8 @@ export async function runMissionAgent(userContext: UserContext): Promise<Mission
 `
 
   try {
-    const response = await callClaudeJSON<MissionResponse>(systemPrompt, CLAUDE_MODEL_HAIKU)
+    const raw = await callClaude({ model: CLAUDE_MODEL_HAIKU, system: systemPrompt, messages: [{ role: 'user', content: 'צור משימה שבועית' }], jsonPrefill: true })
+    const response: MissionResponse = JSON.parse(raw)
 
     return {
       title: response.title || 'משימה שבועית',
