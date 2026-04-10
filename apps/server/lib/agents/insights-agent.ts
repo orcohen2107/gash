@@ -1,4 +1,4 @@
-import { callClaudeJSON } from '@/lib/claude'
+import { callClaude } from '@/lib/claude'
 import { buildUserContext } from '@/lib/build-user-context'
 
 export interface InsightResponse {
@@ -47,10 +47,8 @@ export async function runInsightsAgent(userId: string): Promise<InsightResponse>
 ענה בJSON בלבד, בלי טקסט נוסף.`
 
   try {
-    const response = await callClaudeJSON<InsightResponse>(
-      systemPrompt,
-      'Generate insights based on approach patterns'
-    )
+    const raw = await callClaude({ system: systemPrompt, messages: [{ role: 'user', content: 'Generate insights based on approach patterns' }], jsonPrefill: true })
+    const response: InsightResponse = JSON.parse(raw)
     return response
   } catch (err) {
     console.error('Failed to generate insights:', err)

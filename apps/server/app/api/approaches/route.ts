@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     // Get AI feedback
     const userContext = await buildUserContext(userId, supabase)
     const feedbackResponse = await runApproachFeedbackAgent(
-      { approach },
+      { type: 'approach-feedback', approach },
       userContext
     )
 

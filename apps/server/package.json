@@ -13,19 +13,17 @@
     "@gash/constants": "*",
     "@gash/schemas": "*",
     "@gash/types": "*",
-    "@sentry/nextjs": "^8.0.0",
     "@supabase/supabase-js": "^2.102.1",
     "next": "^15.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/jest": "^29.5.11",
     "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
+    "@types/react": "~18.3.1",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.0",
     "typescript": "^5.3.0"
   }
 }
+
