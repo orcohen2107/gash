@@ -7,6 +7,7 @@ import { analytics } from '@/lib/analytics'
 import type { Approach } from '@gash/types'
 import JournalListItem from '@/components/journal/JournalListItem'
 import ApproachDetailScreen from '@/components/journal/ApproachDetailScreen'
+import { AppTopBar } from '@/components/layout/AppTopBar'
 
 const APPROACH_TYPES = [
   { label: 'ישיר', value: 'direct' },
@@ -83,10 +84,7 @@ export default function JournalScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>היומן שלי</Text>
-      </View>
+      <AppTopBar from="journal" />
 
       {/* Filters */}
       <View style={styles.filtersContainer}>
@@ -203,19 +201,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0e0e0e',
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#ffffff',
-    textAlign: 'right',
   },
   filtersContainer: {
     paddingHorizontal: 16,

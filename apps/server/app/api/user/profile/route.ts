@@ -1,34 +1,52 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyAuth, UnauthorizedError } from '@/lib/auth'
+import { verifyAuth } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { z } from 'zod'
+import { handleApiError } from '@/lib/apiError'
 
 const profileSchema = z.object({
   name: z.string().min(2).max(50),
   age: z.number().int().min(16).max(100),
+  email: z.string().email().max(254),
 })
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = await verifyAuth(request)
+    const { userId, phone } = await verifyAuth(request)
     const body = await request.json()
-    const { name, age } = profileSchema.parse(body)
+    const { name, age, email } = profileSchema.parse(body)
+    const emailNorm = email.trim().toLowerCase()
+    const row = { name, age, phone, email: emailNorm }
 
-    const { error } = await supabaseAdmin
+    const { data: exists, error: exErr } = await supabaseAdmin
       .from('users')
-      .upsert({ id: userId, name, age }, { onConflict: 'id' })
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle()
+    if (exErr) throw new Error(exErr.message)
+
+    const { error } = exists
+      ? await supabaseAdmin.from('users').update(row).eq('id', userId)
+      : await supabaseAdmin.from('users').insert({ id: userId, ...row })
 
     if (error) throw new Error(error.message)
 
     return NextResponse.json({ ok: true })
   } catch (err) {
-    if (err instanceof UnauthorizedError) {
-      return NextResponse.json({ error: { message: err.message } }, { status: 401 })
-    }
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: { message: 'פרטים לא תקינים' } }, { status: 400 })
+      const first = err.issues[0]
+      return NextResponse.json(
+        {
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'פרטים לא תקינים',
+            details: first ? `${first.path.join('.')}: ${first.message}` : err.message,
+          },
+        },
+        { status: 400 }
+      )
     }
-    return NextResponse.json({ error: { message: 'שגיאת שרת' } }, { status: 500 })
+    return handleApiError(err)
   }
 }
 
@@ -38,17 +56,14 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabaseAdmin
       .from('users')
-      .select('name, age')
+      .select('name, age, phone, email, avatar_url')
       .eq('id', userId)
-      .single()
+      .maybeSingle()
 
     if (error) throw new Error(error.message)
 
-    return NextResponse.json({ profile: data })
+    return NextResponse.json({ profile: data ?? null })
   } catch (err) {
-    if (err instanceof UnauthorizedError) {
-      return NextResponse.json({ error: { message: err.message } }, { status: 401 })
-    }
-    return NextResponse.json({ error: { message: 'שגיאת שרת' } }, { status: 500 })
+    return handleApiError(err)
   }
 }

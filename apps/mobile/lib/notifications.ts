@@ -5,7 +5,8 @@ import { SERVER_URL, getAuthHeaders } from '@/lib/server'
 // Configure notification handler to be called when notification is tapped
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
   }),
@@ -20,7 +21,24 @@ export async function registerForPushNotifications(): Promise<string | null> {
     finalStatus = status
   }
   if (finalStatus !== 'granted') return null
-  const token = (await Notifications.getExpoPushTokenAsync()).data
+
+  let token: string
+  try {
+    token = (await Notifications.getExpoPushTokenAsync()).data
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    const isNetwork =
+      msg.includes('Network request failed') || msg.includes('fetch')
+    if (__DEV__) {
+      console.warn(
+        '[push] Expo push token unavailable (network / Expo Go / simulator):',
+        msg
+      )
+    } else if (!isNetwork) {
+      console.error('[push] Failed to get push token:', err)
+    }
+    return null
+  }
 
   // Store token on server immediately after obtaining it
   try {

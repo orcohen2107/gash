@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, ScrollView, StyleSheet, Text } from 'react-native'
+import { View, ScrollView, StyleSheet, Text, useWindowDimensions } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import MissionCard from '@/components/dashboard/MissionCard'
+import { AppTopBar } from '@/components/layout/AppTopBar'
 import { useBadgesStore } from '@/stores/useBadgesStore'
 import { useStatsStore } from '@/stores/useStatsStore'
 import { useLogStore } from '@/stores/useLogStore'
@@ -10,32 +11,30 @@ import KPICard from '@/components/dashboard/KPICard'
 import InsightCard from '@/components/dashboard/InsightCard'
 import ChemistryLineChart from '@/components/dashboard/ChemistryLineChart'
 import SuccessBarChart from '@/components/dashboard/SuccessBarChart'
+import { APPROACH_TYPE_LABELS, CHEMISTRY_LABELS } from '@gash/constants'
 
-const APPROACH_TYPE_LABELS: Record<string, string> = {
-  direct: 'ישיר',
-  situational: 'סיטואטיבי',
-  humor: 'הומור',
-  online: 'אונליין',
-}
+const BG = '#0e0e0e'
 
 export default function DashboardScreen() {
+  const { width } = useWindowDimensions()
   const mission = useBadgesStore((state) => state.mission)
   const isLoadingMission = useBadgesStore((state) => state.isLoadingMission)
   const fetchMission = useBadgesStore((state) => state.fetchMission)
-  const { totalApproaches, successRate, avgChemistry, topApproachType, isLoadingInsights, fetchInsights } = useStatsStore()
+  const { totalApproaches, successRate, avgChemistry, topApproachType, isLoadingInsights, fetchInsights } =
+    useStatsStore()
   const { approaches } = useLogStore()
   const [insight, setInsight] = useState<string>('')
+  const [insightUpdatedAt, setInsightUpdatedAt] = useState<Date | null>(null)
 
-  // Track screen view
+  const cardWidth = (width - 48 - 16) / 2
+
   useFocusEffect(
     useCallback(() => {
       analytics.trackScreenView('dashboard')
-      // Track insights viewed when dashboard is shown
       analytics.trackInsightsViewed(approaches.length)
     }, [approaches.length])
   )
 
-  // Load mission and insight on mount and subscribe to changes
   useEffect(() => {
     fetchMission()
     loadInsight()
@@ -48,103 +47,128 @@ export default function DashboardScreen() {
       const insightsData = await fetchInsights()
       const firstInsight = insightsData.insights?.[0] || 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
       setInsight(firstInsight)
+      setInsightUpdatedAt(new Date())
     } catch (err) {
       console.error('Failed to load insight:', err)
       setInsight('המשך לתעד גישות כדי לקבל תובנות מ-AI')
+      setInsightUpdatedAt(new Date())
     }
   }
 
+  const chemRounded = Math.min(10, Math.max(1, Math.round(Number(avgChemistry) || 0)))
+  const chemistryWord = CHEMISTRY_LABELS[chemRounded] ?? ''
+
   if (approaches.length === 0) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>דשבורד</Text>
-        <Text style={styles.emptyText}>
-          התחל לתעד גישות כדי לראות ניתוחים ותובנות
-        </Text>
+      <View style={styles.safe}>
+        <AppTopBar from="dashboard" />
+        <View style={styles.emptyBody}>
+          <Text style={styles.emptyTitle}>עדיין אין מדדים</Text>
+          <Text style={styles.emptyText}>
+            התחל לתעד גישות כדי לראות כאן ניתוחים, גרפים ותובנות מותאמות אישית.
+          </Text>
+        </View>
       </View>
     )
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>דשבורד</Text>
-      </View>
+    <View style={styles.safe}>
+      <AppTopBar from="dashboard" />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <InsightCard
+          insight={insight}
+          loading={isLoadingInsights}
+          lastUpdated={insightUpdatedAt}
+        />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Mission Card */}
-        <MissionCard mission={mission} loading={isLoadingMission} />
-
-        {/* KPI Cards Grid */}
         <View style={styles.kpiGrid}>
-          <KPICard label="סה״כ גישות" value={totalApproaches} icon="📊" />
-          <KPICard label="שיעור הצלחה" value={`${successRate}%`} icon="✅" />
-          <KPICard label="ממוצע כימיה" value={avgChemistry} icon="⚡" />
-          <KPICard
-            label="סוג מוביל"
-            value={topApproachType ? APPROACH_TYPE_LABELS[topApproachType] : '—'}
-            icon="🎯"
-          />
+          <View style={{ width: cardWidth }}>
+            <KPICard
+              label='סה״כ גישות'
+              value={totalApproaches}
+              icon="person-add"
+              accent="primary"
+            />
+          </View>
+          <View style={{ width: cardWidth }}>
+            <KPICard
+              label="שיעור הצלחה"
+              value={`${successRate}%`}
+              icon="trending-up"
+              accent="tertiary"
+            />
+          </View>
+          <View style={{ width: cardWidth }}>
+            <KPICard
+              label="כימיה ממוצעת"
+              value={avgChemistry.toFixed(1)}
+              icon="favorite"
+              accent="secondary"
+              subLabel={chemistryWord}
+            />
+          </View>
+          <View style={{ width: cardWidth }}>
+            <KPICard
+              label="סוג הכי מצליח"
+              value={topApproachType ? APPROACH_TYPE_LABELS[topApproachType] : '—'}
+              icon="bolt"
+              accent="primaryGlow"
+              trailingIcon={topApproachType ? 'verified' : undefined}
+            />
+          </View>
         </View>
 
-        {/* Charts */}
         <ChemistryLineChart />
         <SuccessBarChart />
 
-        {/* Insight Card */}
-        <InsightCard insight={insight} loading={isLoadingInsights} />
+        <MissionCard mission={mission} loading={isLoadingMission} />
       </ScrollView>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    backgroundColor: '#0e0e0e',
+    backgroundColor: BG,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#ffffff',
-    textAlign: 'right',
-  },
-  scrollView: {
+  scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingVertical: 12,
+    paddingHorizontal: 24,
+    paddingTop: 0,
+    paddingBottom: 120,
   },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 4,
+    justifyContent: 'space-between',
+    rowGap: 16,
+    marginBottom: 8,
   },
-  emptyContainer: {
+  emptyBody: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    backgroundColor: '#0e0e0e',
+    paddingHorizontal: 28,
+    paddingBottom: 48,
   },
   emptyTitle: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 22,
+    fontWeight: '800',
     color: '#ffffff',
-    marginBottom: 16,
-    textAlign: 'right',
+    textAlign: 'center',
+    marginBottom: 12,
   },
   emptyText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#adaaaa',
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
   },
 })

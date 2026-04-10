@@ -74,10 +74,13 @@ export const useStatsStore = create<StatsStore>()(
           approaches.forEach((a) => {
             typeCounts[a.approach_type] = (typeCounts[a.approach_type] ?? 0) + 1
           })
+          const typeKeys = Object.keys(typeCounts)
           const topApproachType =
-            Object.keys(typeCounts).reduce((best, type) =>
-              (typeCounts[type] ?? 0) > (typeCounts[best] ?? 0) ? type : best
-            ) || null
+            typeKeys.length === 0
+              ? null
+              : (typeKeys.reduce((best, type) =>
+                  (typeCounts[type] ?? 0) > (typeCounts[best] ?? 0) ? type : best
+                ) as ApproachType)
 
           set({
             totalApproaches,

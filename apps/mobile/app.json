@@ -2,6 +2,7 @@
   "expo": {
     "name": "gash",
     "slug": "gash",
+    "owner": "gash-app",
     "scheme": "gash",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,7 +10,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0e0e0e"
     },
     "ios": {
       "supportsTabletMode": false,
@@ -25,6 +26,11 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "extra": {
+      "eas": {
+        "projectId": "4b484ada-4191-472d-aa18-4c1da18cd455"
+      }
+    },
     "plugins": [
       "expo-router",
       [
@@ -32,6 +38,12 @@
         {
           "icon": "./assets/icon.png",
           "color": "#ffffff"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "האפליקציה ניגשת לתמונות כדי לעדכן את תמונת הפרופיל שלך."
         }
       ]
     ],

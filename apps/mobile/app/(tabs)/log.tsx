@@ -1,12 +1,15 @@
 import React, { useRef, useEffect, useCallback } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal, BottomSheetModalProvider } from '@gorhom/bottom-sheet'
 import { LogBottomSheet } from '@/components/log/LogBottomSheet'
+import { AppTopBar } from '@/components/layout/AppTopBar'
 import { useLogStore } from '@/stores/useLogStore'
 import { analytics } from '@/lib/analytics'
 
 export default function LogScreen() {
+  const insets = useSafeAreaInsets()
   const bottomSheetRef = useRef<BottomSheetModal>(null)
   const snapPoints = [90]
   const { loadApproaches } = useLogStore()
@@ -32,13 +35,17 @@ export default function LogScreen() {
   return (
     <BottomSheetModalProvider>
       <View style={styles.container}>
+        <AppTopBar from="log" />
         <Text style={styles.title}>רשום גישה</Text>
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateText}>אין לך רישומים עדיין</Text>
           <Text style={styles.emptyStateSubtext}>לחץ על + בתחתית לרשם גישה חדשה</Text>
         </View>
 
-        <Pressable style={styles.fab} onPress={handleOpenSheet}>
+        <Pressable
+          style={[styles.fab, { bottom: 24 + insets.bottom, end: 24 }]}
+          onPress={handleOpenSheet}
+        >
           <Text style={styles.fabIcon}>+</Text>
         </Pressable>
       </View>
@@ -62,7 +69,7 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     textAlign: 'right',
     paddingHorizontal: 16,
-    paddingTop: 20,
+    paddingTop: 8,
     marginBottom: 16,
   },
   emptyState: {
@@ -85,8 +92,6 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 24,
-    right: 24,
     width: 56,
     height: 56,
     borderRadius: 28,

@@ -14,7 +14,7 @@ interface AuthStore {
   signOut: () => Promise<void>
 }
 
-// NO persist — Supabase manages JWT in expo-secure-store via ExpoSecureStoreAdapter
+// NO persist — Supabase manages JWT via AsyncStorage (see lib/supabase.ts)
 export const useAuthStore = create<AuthStore>()((set) => ({
   user: null,
   session: null,

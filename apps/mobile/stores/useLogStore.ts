@@ -2,10 +2,15 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import Toast from 'react-native-toast-message'
+import type { RealtimeChannel } from '@supabase/supabase-js'
 import { createApiClient } from '@gash/api-client'
 import { SERVER_URL, getAuthHeaders, handleAuthError } from '@/lib/server'
 import { supabase } from '@/lib/supabase'
 import type { Approach } from '@gash/types'
+
+/** מנוי Realtime יחיד — מספר מסכים קוראים ל-subscribeToChanges; אסור לפתוח שני .on() על אותו ערוץ אחרי subscribe */
+let approachesRealtimeChannel: RealtimeChannel | null = null
+let approachesRealtimeRefCount = 0
 
 const client = createApiClient({
   serverUrl: SERVER_URL,
@@ -185,24 +190,31 @@ export const useLogStore = create<LogStore>()(
       },
 
       subscribeToChanges: () => {
-        const channel = supabase
-          .channel('approaches')
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: 'approaches',
-            },
-            () => {
-              // Reload approaches on any change
-              get().loadApproaches()
-            }
-          )
-          .subscribe()
+        approachesRealtimeRefCount += 1
+        if (approachesRealtimeRefCount === 1 && !approachesRealtimeChannel) {
+          approachesRealtimeChannel = supabase
+            .channel('approaches-log-store')
+            .on(
+              'postgres_changes',
+              {
+                event: '*',
+                schema: 'public',
+                table: 'approaches',
+              },
+              () => {
+                void get().loadApproaches()
+              }
+            )
+            .subscribe()
+        }
 
         return () => {
-          supabase.removeChannel(channel)
+          approachesRealtimeRefCount -= 1
+          if (approachesRealtimeRefCount <= 0 && approachesRealtimeChannel) {
+            void supabase.removeChannel(approachesRealtimeChannel)
+            approachesRealtimeChannel = null
+            approachesRealtimeRefCount = 0
+          }
         }
       },
     }),

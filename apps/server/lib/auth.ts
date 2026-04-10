@@ -3,6 +3,8 @@ import { createServiceClient } from './supabase'
 
 export interface AuthResult {
   userId: string
+  /** מזהה טלפון מ-Supabase Auth (E.164), אם קיים */
+  phone: string | null
 }
 
 export class UnauthorizedError extends Error {
@@ -30,5 +32,5 @@ export async function verifyAuth(request: NextRequest): Promise<AuthResult> {
     throw new UnauthorizedError('Invalid or expired token')
   }
 
-  return { userId: user.id }
+  return { userId: user.id, phone: user.phone ?? null }
 }

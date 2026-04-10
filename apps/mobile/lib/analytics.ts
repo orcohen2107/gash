@@ -53,8 +53,8 @@ class Analytics {
 
     try {
       const payload = {
-        api_key: this.apiKey,
         event: name,
+        distinct_id: this.userId,
         properties: {
           ...properties,
           $set: {
@@ -101,12 +101,21 @@ class Analytics {
         (m) => m.default
       )
       const queue = await AsyncStorage.getItem('analytics_queue')
-      if (!queue || !this.apiKey) return
+      if (!queue || !this.apiKey || !this.userId) return
 
-      const events = JSON.parse(queue)
-      if (events.length === 0) return
+      const raw = JSON.parse(queue) as Record<string, unknown>[]
+      if (raw.length === 0) return
 
-      // Send batch to PostHog
+      // PostHog requires distinct_id per event; normalize legacy queued items
+      const events = raw.map((ev) => {
+        const { api_key: _drop, ...rest } = ev as Record<string, unknown>
+        return {
+          ...rest,
+          distinct_id:
+            (rest.distinct_id as string | undefined) ?? this.userId ?? undefined,
+        }
+      })
+
       const response = await fetch('https://us.posthog.com/batch/', {
         method: 'POST',
         headers: {

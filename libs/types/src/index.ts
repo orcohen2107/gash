@@ -3,6 +3,10 @@
 export interface UserProfile {
   name: string
   age: number
+  email?: string | null
+  /** URL ציבורי אחרי העלאה ל-Storage */
+  avatar_url?: string | null
+  phone?: string | null
 }
 
 export type ApproachType = 'direct' | 'situational' | 'humor' | 'online'

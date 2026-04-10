@@ -60,3 +60,21 @@ export function useNetworkStatus() {
 export function isOffline(state: NetworkState): boolean {
   return state.isConnected === false || state.isInternetReachable === false
 }
+
+/**
+ * מציג באנר offline רק אחרי שהמצב יציב כמה מאות ms — מונע הבהובים
+ * כש-NetInfo מחליף isInternetReachable וגם מונע אנימציות חוזרות.
+ */
+export function useStableOfflineForBanner(state: NetworkState): boolean {
+  const raw = !state.isLoading && isOffline(state)
+  const [stable, setStable] = useState(false)
+
+  useEffect(() => {
+    if (state.isLoading) return
+    const delayMs = raw ? 420 : 550
+    const id = setTimeout(() => setStable(raw), delayMs)
+    return () => clearTimeout(id)
+  }, [raw, state.isLoading])
+
+  return stable
+}

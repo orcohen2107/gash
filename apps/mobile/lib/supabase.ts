@@ -1,32 +1,20 @@
 import { createClient } from '@supabase/supabase-js'
-import * as SecureStore from 'expo-secure-store'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
-const SECURE_STORE_SIZE_LIMIT = 2000
-
-const ExpoSecureStoreAdapter = {
-  getItem: (key: string): Promise<string | null> =>
-    SecureStore.getItemAsync(key).catch(() => null),
-  setItem: (key: string, value: string): Promise<void> => {
-    if (value.length >= SECURE_STORE_SIZE_LIMIT) {
-      return Promise.reject(
-        new Error(`SecureStore size limit exceeded for key: ${key}`)
-      )
-    }
-    return SecureStore.setItemAsync(key, value)
-  },
-  removeItem: (key: string): Promise<void> =>
-    SecureStore.deleteItemAsync(key),
-}
-
+/**
+ * אחסון session ב-AsyncStorage (ללא מגבלת 2048 בתים של Expo SecureStore).
+ * ה-JWT + אובייקט user מהשרת יכולים לחרוג ממגבלה זו — SecureStore דחה שמירה.
+ * AsyncStorage בתוך sandbox של האפליקציה; לפרודקשן זה דפוס מקובל ב-Expo + Supabase.
+ */
 export const supabase = createClient(
   process.env.EXPO_PUBLIC_SUPABASE_URL!,
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
   {
     auth: {
-      storage: ExpoSecureStoreAdapter,
+      storage: AsyncStorage,
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false, // Required for React Native — no URL scheme
+      detectSessionInUrl: false,
     },
   }
 )

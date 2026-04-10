@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { I18nManager, View } from 'react-native'
-import { Slot, useRouter, usePathname } from 'expo-router'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { Stack, useRouter, usePathname } from 'expo-router'
 import * as Updates from 'expo-updates'
 import * as Notifications from 'expo-notifications'
 import { PostHogProvider } from 'posthog-react-native'
@@ -8,7 +10,7 @@ import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { OfflineBanner } from '@/components/OfflineBanner'
-import { useNetworkStatus, isOffline } from '@/lib/useNetworkStatus'
+import { useNetworkStatus, useStableOfflineForBanner } from '@/lib/useNetworkStatus'
 import { registerForPushNotifications, setupNotificationResponseHandler } from '@/lib/notifications'
 import { analytics } from '@/lib/analytics'
 import { supabase } from '@/lib/supabase'
@@ -26,7 +28,7 @@ function RootLayoutContent() {
   const setLoading = useAuthStore((s) => s.setLoading)
 
   const networkState = useNetworkStatus()
-  const offline = isOffline(networkState)
+  const offline = useStableOfflineForBanner(networkState)
 
   // Track screen views with PostHog
   useEffect(() => {
@@ -68,13 +70,14 @@ function RootLayoutContent() {
 
     ;(async () => {
       try {
-        // Initialize analytics
         await analytics.initialize(session.user.id)
-
-        // Register for push notifications
+      } catch (err) {
+        console.error('Failed to initialize analytics:', err)
+      }
+      try {
         await registerForPushNotifications()
       } catch (err) {
-        console.error('Failed to initialize notifications/analytics:', err)
+        console.error('Failed to register for push notifications:', err)
       }
     })()
 
@@ -96,8 +99,15 @@ function RootLayoutContent() {
   return (
     <ErrorBoundary>
       <View style={{ flex: 1 }}>
+        <View style={{ flex: 1 }}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: '#0e0e0e' },
+            }}
+          />
+        </View>
         <OfflineBanner isOffline={offline} />
-        <Slot />
       </View>
     </ErrorBoundary>
   )
@@ -105,10 +115,14 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   return (
-    <PostHogProvider apiKey={process.env.EXPO_PUBLIC_POSTHOG_API_KEY || ''} options={{
-      host: 'https://us.i.posthog.com',
-    }}>
-      <RootLayoutContent />
-    </PostHogProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <PostHogProvider apiKey={process.env.EXPO_PUBLIC_POSTHOG_API_KEY || ''} options={{
+          host: 'https://us.i.posthog.com',
+        }}>
+          <RootLayoutContent />
+        </PostHogProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   )
 }

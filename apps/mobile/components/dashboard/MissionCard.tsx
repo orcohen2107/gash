@@ -43,14 +43,13 @@ export default function MissionCard({ mission, loading = false }: MissionCardPro
 
 const styles = StyleSheet.create({
   container: {
-    marginHorizontal: 16,
     marginVertical: 16,
     paddingHorizontal: 12,
     paddingVertical: 16,
     backgroundColor: '#1a1a1a',
     borderRadius: 8,
-    borderLeftWidth: 4,
-    borderLeftColor: '#81ecff',
+    borderStartWidth: 4,
+    borderStartColor: '#81ecff',
   },
   title: {
     fontSize: 14,

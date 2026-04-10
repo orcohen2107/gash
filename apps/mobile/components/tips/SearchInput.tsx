@@ -1,5 +1,6 @@
 import React from 'react'
 import { View, TextInput, StyleSheet } from 'react-native'
+import { MaterialIcons } from '@expo/vector-icons'
 
 interface SearchInputProps {
   value: string
@@ -10,14 +11,20 @@ interface SearchInputProps {
 export default function SearchInput({
   value,
   onChangeText,
-  placeholder = 'חיפוש...',
+  placeholder = 'חיפוש טיפים, טכניקות...',
 }: SearchInputProps) {
   return (
-    <View style={styles.container}>
+    <View style={styles.wrap}>
+      <MaterialIcons
+        name="search"
+        size={22}
+        color="#adaaaa"
+        style={styles.icon}
+      />
       <TextInput
         style={styles.input}
         placeholder={placeholder}
-        placeholderTextColor="#666666"
+        placeholderTextColor="rgba(173, 170, 170, 0.5)"
         value={value}
         onChangeText={onChangeText}
         textAlign="right"
@@ -27,18 +34,26 @@ export default function SearchInput({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrap: {
     marginHorizontal: 16,
-    marginVertical: 12,
+    marginBottom: 8,
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  icon: {
+    position: 'absolute',
+    end: 16,
+    zIndex: 1,
+    pointerEvents: 'none',
   },
   input: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingEnd: 48,
+    paddingVertical: 12,
+    backgroundColor: '#20201f',
+    borderRadius: 12,
     color: '#ffffff',
     fontSize: 14,
-    borderWidth: 1,
-    borderColor: '#444444',
+    borderWidth: 0,
   },
 })
