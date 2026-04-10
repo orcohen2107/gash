@@ -1,4 +1,5 @@
 {
-  "monorepo": true,
-  "buildCommand": "npm install --workspaces --legacy-peer-deps"
+  "buildCommand": "npm install --legacy-peer-deps && cd apps/server && npm run build",
+  "outputDirectory": "apps/server/.next",
+  "installCommand": "npm install --legacy-peer-deps"
 }
