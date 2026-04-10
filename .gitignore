@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+.env.example
 
 # Expo / React Native
 .expo/
@@ -9,6 +10,7 @@ node_modules/
 dist/
 .nx/
 .planning/
+.next/
 
 # Native build outputs
 ios/

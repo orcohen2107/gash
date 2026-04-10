@@ -235,9 +235,9 @@ Planning docs in `.planning/phases/`.
 | Phase 1: Foundation | ✅ Complete | Nx monorepo setup, shared libs, auth, chat scaffold |
 | Phase 1.5: Nx Migration | ✅ Complete | Full monorepo migration, all 8 agents, typed api-client |
 | Phase 2: Chat & Coach | ✅ Complete | AI coach integration, message history, RTL compliance |
-| **Phase 3: Log Journal** | 🔄 **In Progress** | Approach logging (form), CRUD, journal list, filters |
-| Phase 4: Dashboard | ⏳ Planned | Analytics, charts, insights, weekly missions |
-| Phase 5: Tips & Missions | ⏳ Planned | Tips library, mission tracking, streak system |
-| Phase 6: Polish & Launch | ⏳ Planned | Performance, testing, Vercel + EAS deployment |
+| Phase 3: Log Journal | ✅ Complete | Approach logging (form), CRUD, journal list, filters |
+| Phase 4: Dashboard | ✅ Complete | Analytics, charts, insights, weekly missions |
+| Phase 5: Tips & Missions | ✅ Complete | Tips library, mission tracking, streak system |
+| Phase 6: Polish & Launch | ✅ Complete | Error boundaries, offline mode, push notifications, analytics, caching |
 
-**Current work:** Phase 3 Plans 02-04 (CRUD, journal list, filtering)
+**Status:** MVP Ready for TestFlight/EAS Build (see `.planning/DEPLOYMENT_CHECKLIST.md`)
