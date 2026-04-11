@@ -95,7 +95,7 @@ export default function CoachScreen() {
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={insets.top}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <Text style={styles.headerTitle}>המאמן</Text>
@@ -113,7 +113,11 @@ export default function CoachScreen() {
         style={styles.list}
       />
 
-      <View style={{ paddingBottom: insets.bottom }}>
+      {/**
+       * בלי paddingBottom מ-insets.bottom: בתוך טאבים אזור המסך כבר מסתיים *מעל* סרגל הטאב,
+       * והוספת inset תחתון יוצרת רווח ענק בין שורת הקלט לטאב (כפל safe-area).
+       */}
+      <View style={styles.inputBar}>
         <ChatInput
           value={inputValue}
           onChangeText={setInputValue}
@@ -148,8 +152,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingTop: 8,
+    /** רק מרווח דק מעל שורת הקלט — לא גובה טאב (הקלט כבר מעל הטאב) */
+    paddingBottom: 6,
+  },
+  inputBar: {
+    paddingBottom: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(255,255,255,0.06)',
   },
 })

@@ -1,21 +1,43 @@
 // app/(tabs)/_layout.tsx
 // סדר: ב-RTL האלמנט הראשון ברשימה מופיע ימין — טיפים ראשונים, אזור אישי אחרון.
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Tabs, Redirect, useSegments } from 'expo-router'
 import { Platform } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MaterialIcons } from '@expo/vector-icons'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { isMainTab, useTabHistoryStore } from '@/stores/useTabHistoryStore'
+import { tabBarElevationStyle } from '@/lib/responsiveLayout'
 
 const ACTIVE = '#81ecff'
 const INACTIVE = '#adaaaa'
 const BAR_BG = 'rgba(32, 32, 31, 0.96)'
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets()
   const session = useAuthStore((s) => s.session)
   const loading = useAuthStore((s) => s.loading)
   const segments = useSegments()
   const setLastNonProfile = useTabHistoryStore((s) => s.setLastNonProfile)
+
+  /** גובה סרגל הטאבים לפי safe-area אמיתי (לא קבוע 84/72) */
+  const tabBarStyle = useMemo(() => {
+    const paddingTop = 8
+    const rowMin = 52
+    const bottomInset = Math.max(
+      insets.bottom,
+      Platform.OS === 'android' ? 10 : 6
+    )
+    return {
+      backgroundColor: BAR_BG,
+      borderTopWidth: 1,
+      borderTopColor: 'rgba(72, 72, 71, 0.15)',
+      height: paddingTop + rowMin + bottomInset,
+      paddingTop,
+      paddingBottom: bottomInset,
+      ...tabBarElevationStyle(),
+    }
+  }, [insets.bottom])
 
   useEffect(() => {
     if (loading || !session) return
@@ -42,19 +64,7 @@ export default function TabLayout() {
           fontWeight: '700',
           marginTop: 2,
         },
-        tabBarStyle: {
-          backgroundColor: BAR_BG,
-          borderTopWidth: 1,
-          borderTopColor: 'rgba(72, 72, 71, 0.15)',
-          height: Platform.OS === 'ios' ? 84 : 72,
-          paddingTop: 8,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 10,
-          elevation: 0,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.35,
-          shadowRadius: 16,
-        },
+        tabBarStyle,
         tabBarItemStyle: { paddingVertical: 4 },
       }}
     >

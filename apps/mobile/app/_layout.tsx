@@ -3,6 +3,7 @@ import { I18nManager, View } from 'react-native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import { Stack, useRouter, usePathname } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
 import * as Updates from 'expo-updates'
 import * as Notifications from 'expo-notifications'
 import { PostHogProvider } from 'posthog-react-native'
@@ -14,15 +15,17 @@ import { useNetworkStatus, useStableOfflineForBanner } from '@/lib/useNetworkSta
 import { registerForPushNotifications, setupNotificationResponseHandler } from '@/lib/notifications'
 import { analytics } from '@/lib/analytics'
 import { supabase } from '@/lib/supabase'
+import { fetchAndSyncUserProfile } from '@/lib/userProfileSync'
 
 function RootLayoutContent() {
   const router = useRouter()
   const pathname = usePathname()
-  const previousPathname = useRef<string>()
+  const previousPathname = useRef<string | undefined>(undefined)
   const rtlInitialized = useSettingsStore((s) => s.rtlInitialized)
   const setRtlInitialized = useSettingsStore((s) => s.setRtlInitialized)
 
   const session = useAuthStore((s) => s.session)
+  const sessionUserId = session?.user?.id
   const loading = useAuthStore((s) => s.loading)
   const setSession = useAuthStore((s) => s.setSession)
   const setLoading = useAuthStore((s) => s.setLoading)
@@ -64,6 +67,11 @@ function RootLayoutContent() {
     return () => subscription.unsubscribe()
   }, [setSession, setLoading])
 
+  useEffect(() => {
+    if (!sessionUserId) return
+    void fetchAndSyncUserProfile()
+  }, [sessionUserId])
+
   // Register for push notifications and initialize analytics when user is authenticated
   useEffect(() => {
     if (!session?.user?.id) return
@@ -86,8 +94,9 @@ function RootLayoutContent() {
       const { data } = response.notification.request.content
 
       // Handle deep linking based on notification type
-      if (data?.screen) {
-        router.push(data.screen)
+      const screen = data && typeof data === 'object' && 'screen' in data ? data.screen : undefined
+      if (typeof screen === 'string' && screen.length > 0) {
+        router.push(screen)
       }
     })
 
@@ -99,6 +108,7 @@ function RootLayoutContent() {
   return (
     <ErrorBoundary>
       <View style={{ flex: 1 }}>
+        <StatusBar style="light" />
         <View style={{ flex: 1 }}>
           <Stack
             screenOptions={{

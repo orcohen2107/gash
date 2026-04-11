@@ -2,8 +2,10 @@ import React from 'react'
 import { View, Text, StyleSheet, FlatList } from 'react-native'
 import { BADGES } from '@gash/constants'
 import { useBadgesStore } from '@/stores/useBadgesStore'
+import { useHorizontalGutter } from '@/lib/responsiveLayout'
 
 export default function BadgeGallery() {
+  const gutter = useHorizontalGutter()
   const unlockedBadges = useBadgesStore((state) => state.unlockedBadges)
   const unlockedIds = new Set(unlockedBadges.map((b) => b.id))
 
@@ -28,7 +30,7 @@ export default function BadgeGallery() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingHorizontal: gutter }]}>
       <Text style={styles.title}>הצגות שלי</Text>
       <FlatList
         data={BADGES}
@@ -45,7 +47,6 @@ export default function BadgeGallery() {
 const styles = StyleSheet.create({
   container: {
     marginVertical: 20,
-    paddingHorizontal: 16,
   },
   title: {
     fontSize: 18,

@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, TextInput, StyleSheet } from 'react-native'
 import { MaterialIcons } from '@expo/vector-icons'
+import { useHorizontalGutter } from '@/lib/responsiveLayout'
 
 interface SearchInputProps {
   value: string
@@ -13,8 +14,9 @@ export default function SearchInput({
   onChangeText,
   placeholder = 'חיפוש טיפים, טכניקות...',
 }: SearchInputProps) {
+  const gutter = useHorizontalGutter()
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { marginHorizontal: gutter }]}>
       <MaterialIcons
         name="search"
         size={22}
@@ -35,7 +37,6 @@ export default function SearchInput({
 
 const styles = StyleSheet.create({
   wrap: {
-    marginHorizontal: 16,
     marginBottom: 8,
     position: 'relative',
     justifyContent: 'center',

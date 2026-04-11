@@ -2,7 +2,12 @@ import { useAuthStore } from '../../stores/useAuthStore'
 
 describe('useAuthStore', () => {
   beforeEach(() => {
-    useAuthStore.setState({ user: null, session: null })
+    useAuthStore.setState({
+      user: null,
+      session: null,
+      userProfile: null,
+      profileCacheUserId: null,
+    })
   })
 
   it('initializes with null user and session', () => {

@@ -9,6 +9,7 @@ import {
   TextInput,
   Linking,
   Image,
+  useWindowDimensions,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Controller, useForm } from 'react-hook-form'
@@ -20,6 +21,7 @@ import { Ionicons } from '@expo/vector-icons'
 import { supabase } from '@/lib/supabase'
 import { DEV_TEST_OTP, isDevTestPhone } from '@/lib/auth-dev'
 import { AuthScreenBackdrop, authSurfaceColor } from '@/components/auth/AuthScreenBackdrop'
+import { authScrollPaddingX, softElevatedSurface } from '@/lib/responsiveLayout'
 
 /**
  * תמונת הגיבור (שני אנשים) — קובץ: assets/images/auth-login-hero.png
@@ -60,6 +62,8 @@ function normalizeToE164(local: string): string {
 
 export default function LoginScreen() {
   const router = useRouter()
+  const { width } = useWindowDimensions()
+  const authPad = authScrollPaddingX(width)
   const [loading, setLoading] = useState(false)
   const [phoneFocused, setPhoneFocused] = useState(false)
 
@@ -122,7 +126,7 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.safe}>
       <AuthScreenBackdrop />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingHorizontal: authPad }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         bounces
@@ -182,7 +186,7 @@ export default function LoginScreen() {
               activeOpacity={0.88}
               onPress={handleSubmit(handlePhoneSubmit)}
               disabled={loading}
-              style={styles.ctaOuter}
+              style={[styles.ctaOuter, softElevatedSurface(ACCENT_END)]}
             >
               <LinearGradient
                 colors={[ACCENT_SOFT, ACCENT_END]}
@@ -250,7 +254,6 @@ const styles = StyleSheet.create({
   },
   /* פחות ריווח עליון — לראות את הכותרת בלי גלילה */
   scroll: {
-    paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 32,
   },
@@ -385,11 +388,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 20,
-    shadowColor: ACCENT_END,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    elevation: 8,
   },
   ctaGradient: {
     paddingVertical: 20,

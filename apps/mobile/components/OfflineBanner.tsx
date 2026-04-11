@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, Text, StyleSheet, Pressable } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useHorizontalGutter } from '@/lib/responsiveLayout'
 import NetInfo from '@react-native-community/netinfo'
 import { OfflineQueue } from '@/lib/offlineQueue'
 import { useLogStore } from '@/stores/useLogStore'
@@ -19,6 +20,7 @@ function isNetOffline(state: {
 
 export function OfflineBanner({ isOffline }: OfflineBannerProps) {
   const insets = useSafeAreaInsets()
+  const gutter = useHorizontalGutter()
   const [isProcessing, setIsProcessing] = React.useState(false)
 
   /** בודק שוב את הרשת דרך המערכת; אם יש רשת — מריץ תור פעולות שנשמרו במכשיר (גישות וכו') */
@@ -82,6 +84,7 @@ export function OfflineBanner({ isOffline }: OfflineBannerProps) {
       style={[
         styles.banner,
         {
+          paddingHorizontal: gutter,
           paddingBottom: Math.max(insets.bottom, 12),
         },
       ]}
@@ -115,7 +118,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#2d2d2d',
     borderTopWidth: 1,
     borderTopColor: '#444444',
-    paddingHorizontal: 16,
     paddingTop: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },

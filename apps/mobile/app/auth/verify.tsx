@@ -21,6 +21,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { DEV_TEST_OTP, isDevTestPhone } from '@/lib/auth-dev'
 import { formatApiErrorJson } from '@/lib/apiErrorMessage'
 import { AuthScreenBackdrop, authSurfaceColor } from '@/components/auth/AuthScreenBackdrop'
+import { authScrollPaddingX, softElevatedSurface } from '@/lib/responsiveLayout'
 
 const ACCENT = '#81ecff'
 const ACCENT_SOFT = '#81ecff'
@@ -38,7 +39,8 @@ function showErrorToast(message: string) {
 
 export default function VerifyScreen() {
   const router = useRouter()
-  const { height } = useWindowDimensions()
+  const { height, width } = useWindowDimensions()
+  const authPad = authScrollPaddingX(width)
   const { phone, name, age, email, isRegister } = useLocalSearchParams<{
     phone: string
     name?: string
@@ -207,7 +209,10 @@ export default function VerifyScreen() {
     <SafeAreaView style={styles.safe}>
       <AuthScreenBackdrop />
       <ScrollView
-        contentContainerStyle={[styles.scroll, { minHeight: height * 0.92 }]}
+        contentContainerStyle={[
+          styles.scroll,
+          { minHeight: height * 0.92, paddingHorizontal: authPad },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -274,7 +279,11 @@ export default function VerifyScreen() {
             activeOpacity={0.88}
             disabled={loading || otp.length < 4}
             onPress={() => submitOtp(otp)}
-            style={[styles.ctaOuter, (loading || otp.length < 4) && styles.ctaDisabled]}
+            style={[
+              styles.ctaOuter,
+              softElevatedSurface(ACCENT_END),
+              (loading || otp.length < 4) && styles.ctaDisabled,
+            ]}
           >
             <LinearGradient
               colors={[ACCENT_SOFT, ACCENT_END]}
@@ -308,7 +317,6 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    paddingHorizontal: 24,
     paddingTop: 24,
     paddingBottom: 32,
     justifyContent: 'center',
@@ -417,11 +425,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 24,
-    shadowColor: ACCENT_END,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 24,
-    elevation: 8,
   },
   ctaDisabled: {
     opacity: 0.45,

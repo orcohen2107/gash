@@ -144,7 +144,7 @@ export interface ApiClient {
     get: (id: string) => Promise<Approach>
   }
   insights: {
-    get: () => Promise<{ insights: InsightsResponse }>
+    get: () => Promise<InsightsResponse>
   }
 }
 

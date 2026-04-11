@@ -1,6 +1,7 @@
 import React from 'react'
 import { View, Pressable, Text, StyleSheet, ScrollView } from 'react-native'
 import type { Tip } from '@gash/constants'
+import { useHorizontalGutter } from '@/lib/responsiveLayout'
 
 /** ערכי סינון פנימיים — תוויות במוקאפ: הכל, גישה, שיחה, ביטחון */
 export type TipsFilterValue = 'all' | Tip['category']
@@ -18,11 +19,12 @@ const FILTERS: Array<{ label: string; value: TipsFilterValue }> = [
 ]
 
 export default function CategoryFilter({ selectedCategory, onSelectCategory }: CategoryFilterProps) {
+  const gutter = useHorizontalGutter()
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.container}
+      contentContainerStyle={[styles.container, { paddingHorizontal: gutter }]}
       scrollEventThrottle={16}
     >
       {FILTERS.map((item) => (
@@ -50,7 +52,6 @@ export default function CategoryFilter({ selectedCategory, onSelectCategory }: C
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
     paddingVertical: 4,
     gap: 12,
     flexDirection: 'row',

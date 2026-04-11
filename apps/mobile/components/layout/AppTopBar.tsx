@@ -1,11 +1,10 @@
-import React, { useCallback } from 'react'
-import { View, Text, Pressable, StyleSheet } from 'react-native'
+import React, { useMemo } from 'react'
+import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native'
 import { useRouter } from 'expo-router'
-import { useFocusEffect } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { MaterialIcons } from '@expo/vector-icons'
 import { UserAvatarEditor } from '@/components/profile/UserAvatarEditor'
-import { fetchAndSyncUserProfile } from '@/lib/userProfileSync'
+import { horizontalGutter, topBarTitleSize } from '@/lib/responsiveLayout'
 
 const BG = '#0e0e0e'
 const ACCENT = '#81ecff'
@@ -28,16 +27,23 @@ interface AppTopBarProps {
 export function AppTopBar({ from }: AppTopBarProps) {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
+  const gutter = horizontalGutter(width)
+  const brandSize = topBarTitleSize(width, true)
+  const titleSize = topBarTitleSize(width, false)
+  const avatarSize = width < 360 ? 32 : 36
 
-  useFocusEffect(
-    useCallback(() => {
-      void fetchAndSyncUserProfile()
-    }, [])
+  const titleStyle = useMemo(
+    () =>
+      from === 'tips'
+        ? [styles.brand, { fontSize: brandSize }]
+        : [styles.screenTitle, { fontSize: titleSize }],
+    [from, brandSize, titleSize]
   )
 
   return (
     <View style={[styles.wrap, { paddingTop: insets.top, backgroundColor: BG }]}>
-      <View style={styles.row}>
+      <View style={[styles.row, { paddingHorizontal: gutter }]}>
         <View style={styles.side}>
           <Pressable
             onPress={() => router.push(`/profile?from=${from}`)}
@@ -49,15 +55,12 @@ export function AppTopBar({ from }: AppTopBarProps) {
             <MaterialIcons name="settings" size={24} color={ACCENT} />
           </Pressable>
         </View>
-        <Text
-          style={from === 'tips' ? styles.brand : styles.screenTitle}
-          numberOfLines={1}
-        >
+        <Text style={titleStyle} numberOfLines={1}>
           {CENTER_TITLE[from]}
         </Text>
         <View style={[styles.side, styles.sideEnd]}>
           <UserAvatarEditor
-            size={36}
+            size={avatarSize}
             style={{
               borderWidth: 1,
               borderColor: 'rgba(72, 72, 71, 0.35)',
@@ -77,7 +80,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
     paddingVertical: 12,
     minHeight: 56,
   },
@@ -90,7 +92,6 @@ const styles = StyleSheet.create({
   },
   brand: {
     flexShrink: 1,
-    fontSize: 22,
     fontWeight: '800',
     color: ACCENT,
     letterSpacing: -0.5,
@@ -99,7 +100,6 @@ const styles = StyleSheet.create({
   },
   screenTitle: {
     flexShrink: 1,
-    fontSize: 20,
     fontWeight: '800',
     color: ACCENT,
     textAlign: 'center',

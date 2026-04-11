@@ -2,6 +2,7 @@ import React from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { MaterialIcons } from '@expo/vector-icons'
 import type { Tip } from '@gash/constants'
+import { useHorizontalGutter } from '@/lib/responsiveLayout'
 
 interface TipCardProps {
   tip: Tip
@@ -31,11 +32,13 @@ export default function TipCard({
   categoryLabel,
   readMinutes,
 }: TipCardProps) {
+  const gutter = useHorizontalGutter()
   const icon = iconForCategory(tip.category)
+  const sideMargin = { marginHorizontal: gutter }
 
   if (variant === 'featured') {
     return (
-      <View style={styles.featuredOuter}>
+      <View style={[styles.featuredOuter, sideMargin]}>
         <View style={styles.featuredInner}>
           <View style={styles.featuredTop}>
             <View style={styles.badgeRecommended}>
@@ -55,7 +58,7 @@ export default function TipCard({
   }
 
   return (
-    <View style={styles.card}>
+    <View style={[styles.card, sideMargin]}>
       <View style={styles.row}>
         <View style={styles.iconBox}>
           <MaterialIcons name={icon} size={26} color="#00d4ec" />
@@ -77,7 +80,6 @@ export default function TipCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 16,
     marginBottom: 16,
     padding: 20,
     backgroundColor: '#1a1a1a',
@@ -133,7 +135,6 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   featuredOuter: {
-    marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: 16,
     borderWidth: 1,

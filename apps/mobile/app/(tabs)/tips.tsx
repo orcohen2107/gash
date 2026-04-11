@@ -6,9 +6,10 @@ import {
   Text,
   Pressable,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'
 import { LinearGradient } from 'expo-linear-gradient'
 import { MaterialIcons } from '@expo/vector-icons'
 import { TIPS } from '@gash/constants'
@@ -22,6 +23,7 @@ import { useStatsStore } from '@/stores/useStatsStore'
 import { useLogStore } from '@/stores/useLogStore'
 import { analytics } from '@/lib/analytics'
 import { AppTopBar } from '@/components/layout/AppTopBar'
+import { horizontalGutter } from '@/lib/responsiveLayout'
 
 const BG = '#0e0e0e'
 const ACCENT = '#81ecff'
@@ -49,7 +51,10 @@ function readMinutesFor(tip: Tip): number {
 }
 
 export default function TipsScreen() {
-  const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
+  const gutter = horizontalGutter(width)
+  const tabBarHeight = useBottomTabBarHeight()
+  const heroTitleSize = width < 360 ? 20 : 24
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<TipsFilterValue>('all')
   const [completing, setCompleting] = useState(false)
@@ -114,12 +119,15 @@ export default function TipsScreen() {
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: tabBarHeight + 24 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroRow}>
+        <View style={[styles.heroRow, { paddingHorizontal: gutter }]}>
           <View style={styles.heroText}>
-            <Text style={styles.heroTitle}>טיפים ותפקידים</Text>
+            <Text style={[styles.heroTitle, { fontSize: heroTitleSize }]}>טיפים ותפקידים</Text>
             <Text style={styles.heroSub}>התקדמות אישית וכלים להצלחה</Text>
           </View>
           <View style={styles.streakPill}>
@@ -128,7 +136,7 @@ export default function TipsScreen() {
         </View>
 
         {/* משימה שבועית */}
-        <View style={styles.missionWrap}>
+        <View style={[styles.missionWrap, { marginHorizontal: gutter }]}>
           <View style={styles.missionGlow} />
           <View style={styles.missionHeader}>
             <Text style={styles.missionKicker}>המשימה השבועית</Text>
@@ -240,7 +248,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: 24,
     marginBottom: 24,
     gap: 12,
   },
@@ -249,7 +256,6 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   heroTitle: {
-    fontSize: 24,
     fontWeight: '800',
     color: '#ffffff',
     textAlign: 'right',
@@ -278,7 +284,6 @@ const styles = StyleSheet.create({
     color: ACCENT,
   },
   missionWrap: {
-    marginHorizontal: 24,
     marginBottom: 28,
     padding: 24,
     borderRadius: 16,

@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   ScrollView,
   Platform,
+  useWindowDimensions,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { MaterialIcons } from '@expo/vector-icons'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { AuthScreenBackdrop, authSurfaceColor } from '@/components/auth/AuthScreenBackdrop'
+import { welcomeScreenPaddingX } from '@/lib/responsiveLayout'
 
 const SURFACE_CONTAINER = '#1a1a1a'
 const ON_SURFACE = '#ffffff'
@@ -23,6 +25,9 @@ const PRIMARY_FIXED = '#00e3fd'
 export default function WelcomeScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
+  const welcomePad = welcomeScreenPaddingX(width)
+  const featuresGap = width < 360 ? 20 : width > 430 ? 56 : 40
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
@@ -38,7 +43,13 @@ export default function WelcomeScreen() {
       />
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 96 }]}
+        contentContainerStyle={[
+          styles.scroll,
+          {
+            paddingHorizontal: welcomePad,
+            paddingBottom: insets.bottom + 96,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         bounces
@@ -61,7 +72,7 @@ export default function WelcomeScreen() {
           <View style={styles.headlineBlock}>
             <View style={styles.titleWrap}>
               <Text
-                style={styles.title}
+                style={[styles.title, width < 360 ? styles.titleCompact : null]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.68}
@@ -102,7 +113,10 @@ export default function WelcomeScreen() {
       </ScrollView>
 
       <View
-        style={[styles.featuresBar, { paddingBottom: insets.bottom + 10 }]}
+        style={[
+          styles.featuresBar,
+          { paddingBottom: insets.bottom + 10, paddingHorizontal: welcomePad, gap: featuresGap },
+        ]}
         pointerEvents="box-none"
       >
         <View style={styles.feature}>
@@ -139,7 +153,6 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    paddingHorizontal: 32,
     paddingTop: 32,
   },
   main: {
@@ -208,6 +221,10 @@ const styles = StyleSheet.create({
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  titleCompact: {
+    fontSize: 28,
+    letterSpacing: -0.4,
   },
   title: {
     width: '100%',
@@ -293,8 +310,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 48,
-    paddingHorizontal: 16,
+    flexWrap: 'wrap',
     paddingTop: 8,
   },
   feature: {

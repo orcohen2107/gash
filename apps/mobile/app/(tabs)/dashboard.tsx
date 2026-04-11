@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, ScrollView, StyleSheet, Text, useWindowDimensions } from 'react-native'
+import { View, ScrollView, StyleSheet, Text, useWindowDimensions, Pressable } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'
 import MissionCard from '@/components/dashboard/MissionCard'
 import { AppTopBar } from '@/components/layout/AppTopBar'
 import { useBadgesStore } from '@/stores/useBadgesStore'
@@ -12,11 +13,18 @@ import InsightCard from '@/components/dashboard/InsightCard'
 import ChemistryLineChart from '@/components/dashboard/ChemistryLineChart'
 import SuccessBarChart from '@/components/dashboard/SuccessBarChart'
 import { APPROACH_TYPE_LABELS, CHEMISTRY_LABELS } from '@gash/constants'
+import { horizontalGutter } from '@/lib/responsiveLayout'
+import {
+  injectDashboardDevMock,
+  clearDashboardDevMock,
+} from '@/lib/dashboardDevMock'
 
 const BG = '#0e0e0e'
 
 export default function DashboardScreen() {
   const { width } = useWindowDimensions()
+  const gutter = horizontalGutter(width)
+  const tabBarHeight = useBottomTabBarHeight()
   const mission = useBadgesStore((state) => state.mission)
   const isLoadingMission = useBadgesStore((state) => state.isLoadingMission)
   const fetchMission = useBadgesStore((state) => state.fetchMission)
@@ -26,7 +34,7 @@ export default function DashboardScreen() {
   const [insight, setInsight] = useState<string>('')
   const [insightUpdatedAt, setInsightUpdatedAt] = useState<Date | null>(null)
 
-  const cardWidth = (width - 48 - 16) / 2
+  const cardWidth = (width - 2 * gutter - 16) / 2
 
   useFocusEffect(
     useCallback(() => {
@@ -45,7 +53,8 @@ export default function DashboardScreen() {
   const loadInsight = async () => {
     try {
       const insightsData = await fetchInsights()
-      const firstInsight = insightsData.insights?.[0] || 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
+      const firstInsight =
+        insightsData?.insights?.[0] || 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
       setInsight(firstInsight)
       setInsightUpdatedAt(new Date())
     } catch (err) {
@@ -62,11 +71,22 @@ export default function DashboardScreen() {
     return (
       <View style={styles.safe}>
         <AppTopBar from="dashboard" />
-        <View style={styles.emptyBody}>
+        <View style={[styles.emptyBody, { paddingBottom: tabBarHeight + 32 }]}>
           <Text style={styles.emptyTitle}>עדיין אין מדדים</Text>
           <Text style={styles.emptyText}>
             התחל לתעד גישות כדי לראות כאן ניתוחים, גרפים ותובנות מותאמות אישית.
           </Text>
+          {__DEV__ ? (
+            <View style={[styles.devMock, { marginTop: 28, alignSelf: 'stretch' }]}>
+              <Text style={styles.devMockTitle}>מצב פיתוח</Text>
+              <Pressable
+                style={({ pressed }) => [styles.devBtn, pressed && styles.devBtnPressed]}
+                onPress={() => injectDashboardDevMock()}
+              >
+                <Text style={styles.devBtnText}>טען נתוני דמה לתצוגה</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </View>
       </View>
     )
@@ -77,7 +97,13 @@ export default function DashboardScreen() {
       <AppTopBar from="dashboard" />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingHorizontal: gutter,
+            paddingBottom: tabBarHeight + 24,
+          },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <InsightCard
@@ -127,6 +153,24 @@ export default function DashboardScreen() {
         <SuccessBarChart />
 
         <MissionCard mission={mission} loading={isLoadingMission} />
+
+        {__DEV__ ? (
+          <View style={styles.devMock}>
+            <Text style={styles.devMockTitle}>מצב פיתוח — תצוגת מדדים</Text>
+            <Pressable
+              style={({ pressed }) => [styles.devBtn, pressed && styles.devBtnPressed]}
+              onPress={() => injectDashboardDevMock()}
+            >
+              <Text style={styles.devBtnText}>טען נתוני דמה (מקומי)</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.devBtnOutline, pressed && styles.devBtnPressed]}
+              onPress={() => void clearDashboardDevMock()}
+            >
+              <Text style={styles.devBtnTextOutline}>החזר גישות מהשרת</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   )
@@ -141,9 +185,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 24,
     paddingTop: 0,
-    paddingBottom: 120,
   },
   kpiGrid: {
     flexDirection: 'row',
@@ -156,7 +198,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 28,
-    paddingBottom: 48,
   },
   emptyTitle: {
     fontSize: 22,
@@ -170,5 +211,47 @@ const styles = StyleSheet.create({
     color: '#adaaaa',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  devMock: {
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(129, 236, 255, 0.35)',
+    backgroundColor: 'rgba(38, 38, 38, 0.5)',
+    gap: 10,
+  },
+  devMockTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#81ecff',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  devBtn: {
+    backgroundColor: '#81ecff',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  devBtnOutline: {
+    borderWidth: 1,
+    borderColor: '#81ecff',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  devBtnPressed: {
+    opacity: 0.85,
+  },
+  devBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#003840',
+  },
+  devBtnTextOutline: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#81ecff',
   },
 })

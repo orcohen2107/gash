@@ -1,6 +1,15 @@
 import React, { useCallback, useMemo, useState } from 'react'
-import { View, Text, StyleSheet, FlatList, Pressable, TextInput } from 'react-native'
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  TextInput,
+  useWindowDimensions,
+} from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import { useLogStore } from '@/stores/useLogStore'
 import { analytics } from '@/lib/analytics'
@@ -8,6 +17,7 @@ import type { Approach } from '@gash/types'
 import JournalListItem from '@/components/journal/JournalListItem'
 import ApproachDetailScreen from '@/components/journal/ApproachDetailScreen'
 import { AppTopBar } from '@/components/layout/AppTopBar'
+import { horizontalGutter } from '@/lib/responsiveLayout'
 
 const APPROACH_TYPES = [
   { label: 'ישיר', value: 'direct' },
@@ -17,6 +27,9 @@ const APPROACH_TYPES = [
 ]
 
 export default function JournalScreen() {
+  const { width } = useWindowDimensions()
+  const gutter = horizontalGutter(width)
+  const tabBarHeight = useBottomTabBarHeight()
   const { approaches } = useLogStore()
   const [selectedApproach, setSelectedApproach] = useState<Approach | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
@@ -82,12 +95,23 @@ export default function JournalScreen() {
     setEndDate(null)
   }
 
+  const listContentStyle = useMemo(
+    () => [
+      styles.listContent,
+      {
+        paddingHorizontal: gutter,
+        paddingBottom: tabBarHeight + 20,
+      },
+    ],
+    [gutter, tabBarHeight]
+  )
+
   return (
     <View style={styles.container}>
       <AppTopBar from="journal" />
 
       {/* Filters */}
-      <View style={styles.filtersContainer}>
+      <View style={[styles.filtersContainer, { paddingHorizontal: gutter }]}>
         {/* Type pills */}
         <View style={styles.typeFilterContainer}>
           {APPROACH_TYPES.map((type) => (
@@ -177,7 +201,7 @@ export default function JournalScreen() {
               onPress={() => handleSelectApproach(item)}
             />
           )}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={listContentStyle}
           scrollEnabled={true}
         />
       )}
@@ -203,7 +227,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0e0e0e',
   },
   filtersContainer: {
-    paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 12,
     borderBottomWidth: 1,
@@ -270,7 +293,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   listContent: {
-    paddingHorizontal: 16,
     paddingVertical: 12,
     gap: 12,
   },

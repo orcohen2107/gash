@@ -22,6 +22,7 @@ import { SERVER_URL } from '@/lib/server'
 import { DEV_TEST_OTP, isDevTestPhone } from '@/lib/auth-dev'
 import { formatApiErrorJson } from '@/lib/apiErrorMessage'
 import { AuthScreenBackdrop, authSurfaceColor } from '@/components/auth/AuthScreenBackdrop'
+import { authScrollPaddingX } from '@/lib/responsiveLayout'
 
 /** טוקנים תואמי עיצוב HTML (Material / Digital Architect) */
 const PRIMARY = '#81ecff'
@@ -59,7 +60,8 @@ type FocusedField = 'name' | 'age' | 'email' | 'phone' | null
 
 export default function RegisterScreen() {
   const router = useRouter()
-  const { height } = useWindowDimensions()
+  const { height, width } = useWindowDimensions()
+  const authPad = authScrollPaddingX(width)
   const [loading, setLoading] = useState(false)
   const [focused, setFocused] = useState<FocusedField>(null)
 
@@ -174,7 +176,7 @@ export default function RegisterScreen() {
       <AuthScreenBackdrop />
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, { minHeight: height * 0.88 }]}
+        contentContainerStyle={[styles.scroll, { minHeight: height * 0.88, paddingHorizontal: authPad }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -371,7 +373,6 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
     paddingTop: 8,
     paddingBottom: 40,
   },

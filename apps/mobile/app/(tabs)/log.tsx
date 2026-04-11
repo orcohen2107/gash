@@ -1,15 +1,17 @@
 import React, { useRef, useEffect, useCallback } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal, BottomSheetModalProvider } from '@gorhom/bottom-sheet'
 import { LogBottomSheet } from '@/components/log/LogBottomSheet'
 import { AppTopBar } from '@/components/layout/AppTopBar'
 import { useLogStore } from '@/stores/useLogStore'
 import { analytics } from '@/lib/analytics'
+import { horizontalGutter } from '@/lib/responsiveLayout'
 
 export default function LogScreen() {
-  const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
+  const gutter = horizontalGutter(width)
+  const titleSize = width < 360 ? 24 : 28
   const bottomSheetRef = useRef<BottomSheetModal>(null)
   const snapPoints = [90]
   const { loadApproaches } = useLogStore()
@@ -36,14 +38,15 @@ export default function LogScreen() {
     <BottomSheetModalProvider>
       <View style={styles.container}>
         <AppTopBar from="log" />
-        <Text style={styles.title}>רשום גישה</Text>
+        <Text style={[styles.title, { fontSize: titleSize }]}>רשום גישה</Text>
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateText}>אין לך רישומים עדיין</Text>
           <Text style={styles.emptyStateSubtext}>לחץ על + בתחתית לרשם גישה חדשה</Text>
         </View>
 
         <Pressable
-          style={[styles.fab, { bottom: 24 + insets.bottom, end: 24 }]}
+          /** bottom מחושב מתחתית אזור הטאב בלבד (מעל סרגל האייקונים) — לא מוסיפים tabBarHeight */
+          style={[styles.fab, { bottom: 12, end: gutter }]}
           onPress={handleOpenSheet}
         >
           <Text style={styles.fabIcon}>+</Text>
@@ -64,7 +67,6 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   title: {
-    fontSize: 28,
     fontWeight: '700',
     color: '#ffffff',
     textAlign: 'right',

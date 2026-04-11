@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native'
 import { useRouter, useLocalSearchParams, type Href } from 'expo-router'
 import { useFocusEffect } from '@react-navigation/native'
@@ -21,6 +22,7 @@ import { isMainTab, useTabHistoryStore } from '@/stores/useTabHistoryStore'
 import { UserAvatarEditor } from '@/components/profile/UserAvatarEditor'
 import { fetchAndSyncUserProfile } from '@/lib/userProfileSync'
 import type { UserProfile } from '@gash/types'
+import { horizontalGutter } from '@/lib/responsiveLayout'
 
 const BG = '#0e0e0e'
 const CARD = '#1a1a1a'
@@ -63,6 +65,8 @@ function mapProfile(p: {
 
 export default function SettingsProfileScreen() {
   const router = useRouter()
+  const { width } = useWindowDimensions()
+  const gutter = horizontalGutter(width)
   const params = useLocalSearchParams<{ from?: string | string[] }>()
   const lastNonProfile = useTabHistoryStore((s) => s.lastNonProfile)
   const session = useAuthStore((s) => s.session)
@@ -77,7 +81,10 @@ export default function SettingsProfileScreen() {
   const [phoneSaved, setPhoneSaved] = useState<string | null>(null)
 
   const loadProfile = useCallback(async () => {
-    setLoading(true)
+    const hasCache = !!useAuthStore.getState().userProfile
+    if (!hasCache) {
+      setLoading(true)
+    }
     try {
       const headers = await getAuthHeaders()
       const res = await fetch(`${SERVER_URL}/api/user/profile`, { headers })
@@ -123,9 +130,19 @@ export default function SettingsProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       analytics.trackScreenView('profile')
-      loadProfile()
-    }, [loadProfile])
+    }, [])
   )
+
+  useEffect(() => {
+    const p = useAuthStore.getState().userProfile
+    if (p) {
+      setName(p.name ?? '')
+      setAge(p.age != null ? String(p.age) : '')
+      setEmail(p.email ?? '')
+      setPhoneSaved(p.phone ?? null)
+    }
+    void loadProfile()
+  }, [loadProfile])
 
   const handleSave = async () => {
     const ageNum = parseInt(age.replace(/\D/g, ''), 10)
@@ -172,7 +189,7 @@ export default function SettingsProfileScreen() {
       }
       Toast.show({ type: 'success', text1: 'הפרטים נשמרו', position: 'bottom' })
       setPhoneSaved(session?.user?.phone ?? null)
-      await fetchAndSyncUserProfile()
+      await fetchAndSyncUserProfile({ force: true })
     } catch {
       Toast.show({ type: 'error', text1: 'בעיה בחיבור', position: 'bottom' })
     } finally {
@@ -208,8 +225,8 @@ export default function SettingsProfileScreen() {
   const phone = phoneSaved ?? session?.user?.phone
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom', 'left', 'right']}>
+      <View style={[styles.header, { paddingHorizontal: gutter }]}>
         <Pressable
           onPress={handleBack}
           style={({ pressed }) => [styles.backRow, pressed && styles.backRowPressed]}
@@ -225,11 +242,11 @@ export default function SettingsProfileScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[styles.scroll, { paddingHorizontal: gutter, paddingBottom: 32 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.avatarSection}>
+        <View style={[styles.avatarSection, { paddingHorizontal: gutter }]}>
           <Text style={styles.avatarLabel}>תמונת פרופיל</Text>
           <Text style={styles.avatarHint}>לחץ לבחירת תמונה מהגלריה</Text>
           <View style={styles.avatarWrap}>
@@ -324,7 +341,6 @@ const styles = StyleSheet.create({
     backgroundColor: BG,
   },
   header: {
-    paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 12,
   },
@@ -366,7 +382,6 @@ const styles = StyleSheet.create({
   avatarSection: {
     marginBottom: 20,
     alignItems: 'center',
-    paddingHorizontal: 16,
   },
   avatarLabel: {
     fontSize: 15,
@@ -390,8 +405,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   scroll: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
+    paddingTop: 4,
   },
   card: {
     backgroundColor: CARD,

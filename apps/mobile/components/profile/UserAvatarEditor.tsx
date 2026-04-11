@@ -72,7 +72,7 @@ export function UserAvatarEditor({ size = 40, ring = false, style }: UserAvatarE
           : 'image/jpeg'
 
       await uploadAvatarBase64(b64, mime)
-      await fetchAndSyncUserProfile()
+      await fetchAndSyncUserProfile({ force: true })
       Toast.show({ type: 'success', text1: 'תמונת הפרופיל עודכנה', position: 'bottom' })
     } catch (e) {
       console.error('[UserAvatarEditor]', e)
