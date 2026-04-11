@@ -27,4 +27,22 @@ describe('useAuthStore', () => {
     useAuthStore.getState().setSession(null)
     expect(useAuthStore.getState().user).toBeNull()
   })
+
+  it('clears cached profile when the session switches to another user', () => {
+    const firstSession = { user: { id: 'user-1', email: 'one@test.com' } } as any
+    const secondSession = { user: { id: 'user-2', email: 'two@test.com' } } as any
+
+    useAuthStore.getState().setSession(firstSession)
+    useAuthStore.getState().setUserProfile({
+      name: 'משתמש ראשון',
+      age: 25,
+      phone: '+972501111111',
+    })
+
+    useAuthStore.getState().setSession(secondSession)
+
+    expect(useAuthStore.getState().user?.id).toBe('user-2')
+    expect(useAuthStore.getState().userProfile).toBeNull()
+    expect(useAuthStore.getState().profileCacheUserId).toBe('user-2')
+  })
 })
