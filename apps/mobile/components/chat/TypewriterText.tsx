@@ -6,10 +6,17 @@ const DEFAULT_SPEED_MS = 45
 interface TypewriterTextProps {
   content: string
   speed?: number
+  /** צבע טקסט בבועת המאמן (ברירת מחדל כהה לתאימות לאחור) */
+  textColor?: string
   style?: object
 }
 
-export function TypewriterText({ content, speed = DEFAULT_SPEED_MS, style }: TypewriterTextProps) {
+export function TypewriterText({
+  content,
+  speed = DEFAULT_SPEED_MS,
+  textColor = '#0d2123',
+  style,
+}: TypewriterTextProps) {
   const [displayedText, setDisplayedText] = useState('')
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const indexRef = useRef(0)
@@ -37,14 +44,15 @@ export function TypewriterText({ content, speed = DEFAULT_SPEED_MS, style }: Typ
     }
   }, [content, speed])
 
-  return <Text style={[styles.text, style]}>{displayedText}</Text>
+  return (
+    <Text style={[styles.text, { color: textColor }, style]}>{displayedText}</Text>
+  )
 }
 
 const styles = StyleSheet.create({
   text: {
-    color: '#0d2123',
-    fontSize: 16,
-    lineHeight: 26,
+    fontSize: 14,
+    lineHeight: 22,
     fontFamily: 'Inter',
     textAlign: 'right',
   },

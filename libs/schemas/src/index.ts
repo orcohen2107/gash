@@ -1,7 +1,17 @@
 import { z } from 'zod'
 
 export const ApproachTypeSchema = z.enum(['direct', 'situational', 'humor', 'online'])
-export const FollowUpTypeSchema = z.enum(['meeting', 'text', 'instagram', 'nothing'])
+export const FollowUpTypeSchema = z.enum([
+  'meeting',
+  'text',
+  'instagram',
+  'nothing',
+  'phone',
+  'instant',
+  'coffee',
+  'kiss',
+  'went_home',
+])
 
 export const ApproachSchema = z.object({
   id: z.string().uuid(),
@@ -17,22 +27,41 @@ export const ApproachSchema = z.object({
   created_at: z.string(),
 })
 
+/** רווחים מיותרים לא נספרים כתוכן; ריק אחרי trim → null */
+function trimToNullableString(val: string | null): string | null {
+  if (val == null) return null
+  const t = val.trim()
+  return t.length === 0 ? null : t
+}
+
 export const CreateApproachSchema = ApproachSchema.omit({
   id: true,
   user_id: true,
   created_at: true,
 }).extend({
-  // Tighten validation for mobile form fields
+  // Tighten validation for mobile form fields (משותף לשרת POST /api/approaches)
   date: z.string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .refine((date) => {
       const today = new Date().toISOString().split('T')[0]
       return date <= today
     }, 'לא ניתן לבחור תאריכים עתידיים'),
-  opener: z.string().nullable().refine(
-    (val) => val === null || val === '' || val.length <= 200,
-    'פתיחה חייבת להיות קצרה מ-200 תווים'
-  ),
+  location: z
+    .string()
+    .nullable()
+    .transform(trimToNullableString),
+  opener: z
+    .string()
+    .nullable()
+    .transform(trimToNullableString)
+    .refine(
+      (val) => val === null || val.length <= 200,
+      'פתיחה חייבת להיות קצרה מ-200 תווים'
+    ),
+  notes: z
+    .string()
+    .nullable()
+    .transform(trimToNullableString),
   chemistry_score: z.number()
     .min(1, 'כימיה חייבת להיות בין 1 ל-10')
     .max(10, 'כימיה חייבת להיות בין 1 ל-10')

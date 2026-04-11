@@ -7,6 +7,7 @@ import type { Mission } from '@/stores/useBadgesStore'
 import { useLogStore } from '@/stores/useLogStore'
 import { useStatsStore } from '@/stores/useStatsStore'
 import { useBadgesStore } from '@/stores/useBadgesStore'
+import { loadDashboardBundle } from '@/lib/loadDashboardBundle'
 
 const MOCK_USER_ID = '00000000-0000-0000-0000-00000000dev01'
 
@@ -82,11 +83,9 @@ export function injectDashboardDevMock(): void {
     mission: MOCK_MISSION,
     isLoadingMission: false,
   })
+  useBadgesStore.getState().checkAndUnlockBadges()
 }
 
-/** מחזיר גישות מהשרת (מסיר את הדמה אם ה-API עונה). */
-export async function clearDashboardDevMock(): Promise<void> {
-  await useLogStore.getState().loadApproaches()
-  useStatsStore.getState().computeStats()
-  await useBadgesStore.getState().fetchMission()
+export async function clearDashboardDevMock() {
+  return loadDashboardBundle()
 }

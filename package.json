@@ -27,6 +27,8 @@
     "react-native": "0.81.5"
   },
   "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@gorhom/bottom-sheet": "^5.2.9",
     "@hookform/resolvers": "^5.2.2",
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -42,6 +44,7 @@
     "expo-constants": "~18.0.13",
     "expo-device": "~8.0.10",
     "expo-file-system": "~19.0.21",
+    "expo-font": "^55.0.6",
     "expo-image-picker": "~17.0.10",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.11",
@@ -49,6 +52,7 @@
     "expo-notifications": "~0.32.16",
     "expo-router": "~6.0.23",
     "expo-secure-store": "~15.0.8",
+    "expo-speech-recognition": "^3.1.2",
     "expo-status-bar": "~3.0.9",
     "expo-updates": "~29.0.16",
     "i18n-js": "^4.4.3",

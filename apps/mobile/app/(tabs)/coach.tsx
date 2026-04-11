@@ -1,24 +1,27 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   FlatList,
+  Image,
   KeyboardAvoidingView,
   ListRenderItemInfo,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
+import { useRouter } from 'expo-router'
 import { useFocusEffect } from '@react-navigation/native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { MaterialIcons } from '@expo/vector-icons'
 import * as Clipboard from 'expo-clipboard'
 import Toast from 'react-native-toast-message'
 import { ChatBubble } from '@/components/chat/ChatBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { useChatStore } from '@/stores/useChatStore'
+import { useAuthStore } from '@/stores/useAuthStore'
 import { analytics } from '@/lib/analytics'
 import type { ChatMessage } from '@gash/types'
-
-const BUBBLE_ESTIMATED_HEIGHT = 80
 
 const TYPING_ITEM: ChatMessage = {
   id: '__typing__',
@@ -30,6 +33,8 @@ const TYPING_ITEM: ChatMessage = {
 
 export default function CoachScreen() {
   const insets = useSafeAreaInsets()
+  const router = useRouter()
+  const userProfile = useAuthStore((s) => s.userProfile)
   const messages = useChatStore((s) => s.messages)
   const loading = useChatStore((s) => s.loading)
   const sendMessage = useChatStore((s) => s.sendMessage)
@@ -37,7 +42,6 @@ export default function CoachScreen() {
   const flatListRef = useRef<FlatList<ChatMessage>>(null)
   const [inputValue, setInputValue] = useState('')
 
-  // Track screen view
   useFocusEffect(
     useCallback(() => {
       analytics.trackScreenView('coach')
@@ -52,7 +56,6 @@ export default function CoachScreen() {
     const text = inputValue.trim()
     if (!text) return
     setInputValue('')
-    // Track message sent
     analytics.trackMessageSent(text.length)
     await sendMessage(text)
   }, [inputValue, sendMessage])
@@ -71,6 +74,7 @@ export default function CoachScreen() {
         <ChatBubble
           role={item.role}
           content={item.content}
+          createdAt={item.created_at}
           onLongPress={item.role === 'assistant' ? () => handleCopy(item.content) : undefined}
         />
       )
@@ -78,18 +82,20 @@ export default function CoachScreen() {
     [handleCopy]
   )
 
-  const getItemLayout = useCallback(
-    (_data: ArrayLike<ChatMessage> | null | undefined, index: number) => ({
-      length: BUBBLE_ESTIMATED_HEIGHT,
-      offset: BUBBLE_ESTIMATED_HEIGHT * index,
-      index,
-    }),
-    []
-  )
-
   const keyExtractor = useCallback((item: ChatMessage) => item.id, [])
 
   const data = loading ? [...messages, TYPING_ITEM] : messages
+
+  const listHeader = useCallback(
+    () => (
+      <View style={styles.datePillWrap}>
+        <View style={styles.datePill}>
+          <Text style={styles.datePillText}>היום</Text>
+        </View>
+      </View>
+    ),
+    []
+  )
 
   return (
     <KeyboardAvoidingView
@@ -98,7 +104,44 @@ export default function CoachScreen() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.headerTitle}>המאמן</Text>
+        {/* RTL: סדר [הגדרות | כותרת | אווטאר] → הגדרות ימין, אווטאר שמאל */}
+        <Pressable
+          onPress={() => router.push('/profile?from=coach')}
+          hitSlop={12}
+          style={({ pressed }) => [
+            styles.headerSlot,
+            styles.iconBtn,
+            pressed && styles.iconBtnPressed,
+          ]}
+          accessibilityLabel="הגדרות"
+        >
+          <MaterialIcons name="settings" size={24} color="#81ecff" />
+        </Pressable>
+        <View style={styles.headerTitles}>
+          <Text style={styles.headerTitle}>מאמן שלך 🎯</Text>
+          <Text style={styles.headerSubtitle}>אני כאן כדי לעזור</Text>
+        </View>
+        <Pressable
+          onPress={() => router.push('/profile?from=coach')}
+          style={({ pressed }) => [
+            styles.headerSlot,
+            styles.avatarOuter,
+            pressed && styles.iconBtnPressed,
+          ]}
+          accessibilityLabel="תמונת פרופיל"
+        >
+          {userProfile?.avatar_url ? (
+            <Image
+              source={{ uri: userProfile.avatar_url }}
+              style={styles.avatarImg}
+              accessibilityLabel="תמונת פרופיל"
+            />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <MaterialIcons name="person" size={20} color="#adaaaa" />
+            </View>
+          )}
+        </Pressable>
       </View>
 
       <FlatList
@@ -106,17 +149,13 @@ export default function CoachScreen() {
         data={data}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
-        getItemLayout={getItemLayout}
+        ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
         scrollIndicatorInsets={{ right: 1 }}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
         style={styles.list}
       />
 
-      {/**
-       * בלי paddingBottom מ-insets.bottom: בתוך טאבים אזור המסך כבר מסתיים *מעל* סרגל הטאב,
-       * והוספת inset תחתון יוצרת רווח ענק בין שורת הקלט לטאב (כפל safe-area).
-       */}
       <View style={styles.inputBar}>
         <ChatInput
           value={inputValue}
@@ -137,16 +176,64 @@ const styles = StyleSheet.create({
     backgroundColor: '#0e0e0e',
   },
   header: {
-    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
     paddingBottom: 12,
     backgroundColor: '#0e0e0e',
+    gap: 8,
+  },
+  headerSlot: {
+    width: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitles: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0,
   },
   headerTitle: {
     fontSize: 22,
-    fontWeight: '700',
-    color: '#ffffff',
-    textAlign: 'right',
+    fontWeight: '800',
+    color: '#81ecff',
+    textAlign: 'center',
+    letterSpacing: -0.5,
     fontFamily: 'Inter',
+  },
+  headerSubtitle: {
+    marginTop: 2,
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#adaaaa',
+    textAlign: 'center',
+    fontFamily: 'Inter',
+  },
+  iconBtn: {
+    padding: 4,
+  },
+  iconBtnPressed: {
+    opacity: 0.7,
+  },
+  avatarOuter: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(72, 72, 71, 0.35)',
+  },
+  avatarImg: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarPlaceholder: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   list: {
     flex: 1,
@@ -156,12 +243,27 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingHorizontal: 16,
     paddingTop: 8,
-    /** רק מרווח דק מעל שורת הקלט — לא גובה טאב (הקלט כבר מעל הטאב) */
     paddingBottom: 6,
+  },
+  datePillWrap: {
+    alignItems: 'center',
+    marginBottom: 16,
+    marginTop: 8,
+  },
+  datePill: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#131313',
+  },
+  datePillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#adaaaa',
+    letterSpacing: 0.5,
+    fontFamily: 'Inter',
   },
   inputBar: {
     paddingBottom: 0,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.06)',
   },
 })

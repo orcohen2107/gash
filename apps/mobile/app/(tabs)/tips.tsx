@@ -126,12 +126,12 @@ export default function TipsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.heroRow, { paddingHorizontal: gutter }]}>
+          <View style={styles.streakPill}>
+            <Text style={styles.streakText}>🔥 רצף: {streak} ימים</Text>
+          </View>
           <View style={styles.heroText}>
             <Text style={[styles.heroTitle, { fontSize: heroTitleSize }]}>טיפים ותפקידים</Text>
             <Text style={styles.heroSub}>התקדמות אישית וכלים להצלחה</Text>
-          </View>
-          <View style={styles.streakPill}>
-            <Text style={styles.streakText}>🔥 רצף: {streak} ימים</Text>
           </View>
         </View>
 
@@ -244,16 +244,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingTop: 8,
   },
+  /** direction ltr: רצף משמאל, כותרות «טיפים ותפקידים» מימין */
   heroRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 24,
     gap: 12,
+    direction: 'ltr',
   },
   heroText: {
     flex: 1,
     minWidth: 0,
+    alignItems: 'flex-end',
   },
   heroTitle: {
     fontWeight: '800',

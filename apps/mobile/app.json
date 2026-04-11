@@ -45,6 +45,13 @@
         {
           "photosPermission": "האפליקציה ניגשת לתמונות כדי לעדכן את תמונת הפרופיל שלך."
         }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "גש נדרשת לגישה למיקרופון כדי להמיר דיבור לטקסט בהודעות למאמן.",
+          "speechRecognitionPermission": "גש משתמשת בזיהוי דיבור של המערכת כדי להפוך את דיבורך לטקסט."
+        }
       ]
     ],
     "experiments": {

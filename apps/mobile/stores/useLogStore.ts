@@ -45,6 +45,9 @@ async function withRetry<T>(
 interface LogStore {
   approaches: Approach[]
   loading: boolean
+  /** מילוי טופס תיעוד לעריכה — לא נשמר ב-persist */
+  pendingEditApproach: Approach | null
+  setPendingEditApproach: (approach: Approach | null) => void
   loadApproaches: () => Promise<void>
   addApproach: (approach: Omit<Approach, 'id' | 'user_id' | 'created_at'>) => Promise<void>
   updateApproach: (id: string, updates: Partial<Approach>) => Promise<void>
@@ -58,6 +61,8 @@ export const useLogStore = create<LogStore>()(
     (set, get) => ({
       approaches: [],
       loading: false,
+      pendingEditApproach: null,
+      setPendingEditApproach: (approach) => set({ pendingEditApproach: approach }),
 
       loadApproaches: async () => {
         set({ loading: true })

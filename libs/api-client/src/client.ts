@@ -15,6 +15,7 @@ import type {
   BoostResponse,
   Approach,
   ChatMessage,
+  DashboardResponse,
   InsightsResponse,
   UserProfile,
 } from '@gash/types'
@@ -125,6 +126,7 @@ export interface ApiClient {
   user: {
     saveProfile: (profile: UserProfile) => Promise<{ ok: boolean }>
     getProfile: () => Promise<{ profile: UserProfile }>
+    deleteAccount: () => Promise<void>
   }
   coach: {
     send: (req: CoachRequest) => Promise<CoachResponse>
@@ -146,6 +148,9 @@ export interface ApiClient {
   insights: {
     get: () => Promise<InsightsResponse>
   }
+  dashboard: {
+    get: () => Promise<DashboardResponse>
+  }
 }
 
 export function createApiClient(config: ApiClientConfig): ApiClient {
@@ -153,6 +158,7 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     user: {
       saveProfile: (profile) => post(config, '/api/user/profile', profile),
       getProfile: () => get(config, '/api/user/profile'),
+      deleteAccount: () => del(config, '/api/user/account'),
     },
     coach: {
       send: (req) => post(config, '/api/coach', req),
@@ -181,6 +187,9 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
     },
     insights: {
       get: () => get(config, '/api/insights'),
+    },
+    dashboard: {
+      get: () => get(config, '/api/dashboard'),
     },
   }
 }

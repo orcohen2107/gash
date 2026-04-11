@@ -10,7 +10,16 @@ export interface UserProfile {
 }
 
 export type ApproachType = 'direct' | 'situational' | 'humor' | 'online'
-export type FollowUpType = 'meeting' | 'text' | 'instagram' | 'nothing'
+export type FollowUpType =
+  | 'meeting'
+  | 'text'
+  | 'instagram'
+  | 'nothing'
+  | 'phone'
+  | 'instant'
+  | 'coffee'
+  | 'kiss'
+  | 'went_home'
 
 export interface Approach {
   id: string
@@ -202,6 +211,30 @@ export interface InsightsResponse {
   weeklyMission: InsightsMission
   trend: 'עולה' | 'יורד' | 'יציב'
   trendExplanation: string
+}
+
+/** KPI למסך מדדים — מחושב בשרת (או מקומית מאותן נוסחאות) */
+export interface DashboardKpis {
+  totalApproaches: number
+  successRate: number
+  avgChemistry: number
+  topApproachType: ApproachType | null
+}
+
+/** משימה שבועית בחבילת /api/dashboard */
+export interface DashboardMissionPayload {
+  title: string
+  description: string
+  target: number
+  target_approach_type: ApproachType
+}
+
+/** חבילה אחת: גישות + KPI + תובנות + משימה */
+export interface DashboardResponse {
+  approaches: Approach[]
+  kpis: DashboardKpis
+  insights: InsightsResponse
+  mission: DashboardMissionPayload
 }
 
 // User context built from approaches for AI agents

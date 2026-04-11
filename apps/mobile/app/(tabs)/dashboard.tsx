@@ -1,5 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, ScrollView, StyleSheet, Text, useWindowDimensions, Pressable } from 'react-native'
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  Pressable,
+  ActivityIndicator,
+} from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'
 import MissionCard from '@/components/dashboard/MissionCard'
@@ -18,8 +26,10 @@ import {
   injectDashboardDevMock,
   clearDashboardDevMock,
 } from '@/lib/dashboardDevMock'
+import { loadDashboardBundle } from '@/lib/loadDashboardBundle'
 
 const BG = '#0e0e0e'
+const INSIGHT_FALLBACK = 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
 
 export default function DashboardScreen() {
   const { width } = useWindowDimensions()
@@ -27,12 +37,11 @@ export default function DashboardScreen() {
   const tabBarHeight = useBottomTabBarHeight()
   const mission = useBadgesStore((state) => state.mission)
   const isLoadingMission = useBadgesStore((state) => state.isLoadingMission)
-  const fetchMission = useBadgesStore((state) => state.fetchMission)
-  const { totalApproaches, successRate, avgChemistry, topApproachType, isLoadingInsights, fetchInsights } =
-    useStatsStore()
+  const { totalApproaches, successRate, avgChemistry, topApproachType } = useStatsStore()
   const { approaches } = useLogStore()
   const [insight, setInsight] = useState<string>('')
   const [insightUpdatedAt, setInsightUpdatedAt] = useState<Date | null>(null)
+  const [bundleLoading, setBundleLoading] = useState(true)
 
   const cardWidth = (width - 2 * gutter - 16) / 2
 
@@ -44,49 +53,34 @@ export default function DashboardScreen() {
   )
 
   useEffect(() => {
-    fetchMission()
-    loadInsight()
+    useBadgesStore.setState({ isLoadingMission: true })
     const unsubscribe = useLogStore.getState().subscribeToChanges()
+    void (async () => {
+      try {
+        const data = await loadDashboardBundle()
+        setInsight(data.insights.insights[0] ?? INSIGHT_FALLBACK)
+        setInsightUpdatedAt(new Date())
+      } catch (err) {
+        console.error('Failed to load dashboard bundle:', err)
+        useBadgesStore.setState({ isLoadingMission: false })
+        setInsight(INSIGHT_FALLBACK)
+        setInsightUpdatedAt(new Date())
+      } finally {
+        setBundleLoading(false)
+      }
+    })()
     return unsubscribe
-  }, [fetchMission])
-
-  const loadInsight = async () => {
-    try {
-      const insightsData = await fetchInsights()
-      const firstInsight =
-        insightsData?.insights?.[0] || 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
-      setInsight(firstInsight)
-      setInsightUpdatedAt(new Date())
-    } catch (err) {
-      console.error('Failed to load insight:', err)
-      setInsight('המשך לתעד גישות כדי לקבל תובנות מ-AI')
-      setInsightUpdatedAt(new Date())
-    }
-  }
+  }, [])
 
   const chemRounded = Math.min(10, Math.max(1, Math.round(Number(avgChemistry) || 0)))
   const chemistryWord = CHEMISTRY_LABELS[chemRounded] ?? ''
 
-  if (approaches.length === 0) {
+  if (bundleLoading) {
     return (
       <View style={styles.safe}>
         <AppTopBar from="dashboard" />
-        <View style={[styles.emptyBody, { paddingBottom: tabBarHeight + 32 }]}>
-          <Text style={styles.emptyTitle}>עדיין אין מדדים</Text>
-          <Text style={styles.emptyText}>
-            התחל לתעד גישות כדי לראות כאן ניתוחים, גרפים ותובנות מותאמות אישית.
-          </Text>
-          {__DEV__ ? (
-            <View style={[styles.devMock, { marginTop: 28, alignSelf: 'stretch' }]}>
-              <Text style={styles.devMockTitle}>מצב פיתוח</Text>
-              <Pressable
-                style={({ pressed }) => [styles.devBtn, pressed && styles.devBtnPressed]}
-                onPress={() => injectDashboardDevMock()}
-              >
-                <Text style={styles.devBtnText}>טען נתוני דמה לתצוגה</Text>
-              </Pressable>
-            </View>
-          ) : null}
+        <View style={[styles.loadingBody, { paddingBottom: tabBarHeight + 32 }]}>
+          <ActivityIndicator size="large" color="#81ecff" />
         </View>
       </View>
     )
@@ -106,11 +100,7 @@ export default function DashboardScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <InsightCard
-          insight={insight}
-          loading={isLoadingInsights}
-          lastUpdated={insightUpdatedAt}
-        />
+        <InsightCard insight={insight} loading={false} lastUpdated={insightUpdatedAt} />
 
         <View style={styles.kpiGrid}>
           <View style={{ width: cardWidth }}>
@@ -165,7 +155,17 @@ export default function DashboardScreen() {
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.devBtnOutline, pressed && styles.devBtnPressed]}
-              onPress={() => void clearDashboardDevMock()}
+              onPress={() => {
+                void (async () => {
+                  try {
+                    const data = await clearDashboardDevMock()
+                    setInsight(data.insights.insights[0] ?? INSIGHT_FALLBACK)
+                    setInsightUpdatedAt(new Date())
+                  } catch (e) {
+                    console.error(e)
+                  }
+                })()
+              }}
             >
               <Text style={styles.devBtnTextOutline}>החזר גישות מהשרת</Text>
             </Pressable>
@@ -194,23 +194,11 @@ const styles = StyleSheet.create({
     rowGap: 16,
     marginBottom: 8,
   },
-  emptyBody: {
+  loadingBody: {
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
     paddingHorizontal: 28,
-  },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  emptyText: {
-    fontSize: 15,
-    color: '#adaaaa',
-    textAlign: 'center',
-    lineHeight: 22,
   },
   devMock: {
     marginTop: 24,

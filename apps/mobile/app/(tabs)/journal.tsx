@@ -7,92 +7,81 @@ import {
   Pressable,
   TextInput,
   useWindowDimensions,
+  ScrollView,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'
-import DateTimePicker from '@react-native-community/datetimepicker'
+import { MaterialIcons } from '@expo/vector-icons'
+import { LinearGradient } from 'expo-linear-gradient'
 import { useLogStore } from '@/stores/useLogStore'
 import { analytics } from '@/lib/analytics'
-import type { Approach } from '@gash/types'
+import type { Approach, ApproachType } from '@gash/types'
 import JournalListItem from '@/components/journal/JournalListItem'
 import ApproachDetailScreen from '@/components/journal/ApproachDetailScreen'
 import { AppTopBar } from '@/components/layout/AppTopBar'
 import { horizontalGutter } from '@/lib/responsiveLayout'
 
-const APPROACH_TYPES = [
-  { label: 'ישיר', value: 'direct' },
-  { label: 'סיטואטיבי', value: 'situational' },
-  { label: 'הומור', value: 'humor' },
-  { label: 'אונליין', value: 'online' },
+type FilterValue = ApproachType | null
+
+const FILTERS: { key: string; label: string; value: FilterValue }[] = [
+  { key: 'all', label: 'הכל', value: null },
+  { key: 'direct', label: 'ישירה', value: 'direct' },
+  { key: 'situational', label: 'מצבית', value: 'situational' },
+  { key: 'humor', label: 'הומור', value: 'humor' },
+  { key: 'online', label: 'אונליין', value: 'online' },
 ]
+
+const BG = '#0e0e0e'
+const SURFACE_HIGH = '#20201f'
+const ON_SURFACE = '#ffffff'
+const ON_VARIANT = '#adaaaa'
+const PRIMARY = '#81ecff'
+const GRADIENT_END = '#00d4ec'
+const ON_PRIMARY_FIXED = '#003840'
+const GLASS_BG = 'rgba(38, 38, 38, 0.88)'
+const OUTLINE_15 = 'rgba(72, 72, 71, 0.15)'
+
+function approachMatchesSearch(approach: Approach, q: string): boolean {
+  if (!q.trim()) return true
+  const needle = q.trim().toLowerCase()
+  const parts = [approach.location, approach.opener, approach.notes, approach.response]
+    .filter((s): s is string => typeof s === 'string' && s.length > 0)
+    .map((s) => s.toLowerCase())
+  return parts.some((s) => s.includes(needle))
+}
 
 export default function JournalScreen() {
   const { width } = useWindowDimensions()
   const gutter = horizontalGutter(width)
   const tabBarHeight = useBottomTabBarHeight()
-  const { approaches } = useLogStore()
+  const { approaches, loadApproaches } = useLogStore()
   const [selectedApproach, setSelectedApproach] = useState<Approach | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
 
-  // Track screen view
+  const [selectedType, setSelectedType] = useState<FilterValue>(null)
+  const [searchText, setSearchText] = useState('')
+  const [searchFocused, setSearchFocused] = useState(false)
+
   useFocusEffect(
     useCallback(() => {
       analytics.trackScreenView('journal')
-    }, [])
+      void loadApproaches()
+    }, [loadApproaches])
   )
 
-  // Filter state
-  const [selectedType, setSelectedType] = useState<string | null>(null)
-  const [searchText, setSearchText] = useState('')
-  const [showDateRangeModal, setShowDateRangeModal] = useState(false)
-  const [startDate, setStartDate] = useState<Date | null>(null)
-  const [endDate, setEndDate] = useState<Date | null>(null)
-  const [pickingStart, setPickingStart] = useState(false)
-
-  // Filter approaches
   const filteredApproaches = useMemo(() => {
     return approaches.filter((approach) => {
-      // Filter by type
       if (selectedType && approach.approach_type !== selectedType) return false
-
-      // Filter by search (location)
-      if (searchText && !approach.location?.toLowerCase().includes(searchText.toLowerCase())) {
+      if (searchText && !approachMatchesSearch(approach, searchText)) {
         return false
       }
-
-      // Filter by date range
-      const approachDate = new Date(approach.date)
-      if (startDate && approachDate < startDate) return false
-      if (endDate) {
-        const endOfDay = new Date(endDate)
-        endOfDay.setHours(23, 59, 59, 999)
-        if (approachDate > endOfDay) return false
-      }
-
       return true
     })
-  }, [approaches, selectedType, searchText, startDate, endDate])
-
-  const handleDateChange = (event: any, date?: Date) => {
-    if (pickingStart) {
-      if (date) setStartDate(date)
-      setPickingStart(false)
-    } else {
-      if (date) setEndDate(date)
-      setShowDateRangeModal(false)
-    }
-  }
+  }, [approaches, selectedType, searchText])
 
   const handleSelectApproach = (approach: Approach) => {
     setSelectedApproach(approach)
     setShowDetailModal(true)
-  }
-
-  const handleClearFilters = () => {
-    setSelectedType(null)
-    setSearchText('')
-    setStartDate(null)
-    setEndDate(null)
   }
 
   const listContentStyle = useMemo(
@@ -100,113 +89,124 @@ export default function JournalScreen() {
       styles.listContent,
       {
         paddingHorizontal: gutter,
-        paddingBottom: tabBarHeight + 20,
+        paddingBottom: tabBarHeight + 24,
       },
     ],
     [gutter, tabBarHeight]
+  )
+
+  const listHeader = useMemo(
+    () => (
+      <View style={styles.headerBlock}>
+        <View style={styles.searchWrap}>
+          <TextInput
+            style={[
+              styles.searchInput,
+              searchFocused && styles.searchInputFocused,
+            ]}
+            placeholder="חיפוש במיקום, פתיחה והערות"
+            placeholderTextColor={ON_VARIANT}
+            value={searchText}
+            onChangeText={setSearchText}
+            textAlign="right"
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+          />
+          <View style={styles.searchIcon} pointerEvents="none">
+            <MaterialIcons name="location-on" size={22} color={ON_VARIANT} />
+          </View>
+        </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterScroll}
+        >
+          {FILTERS.map((f) => {
+            const selected =
+              f.value === null
+                ? selectedType === null
+                : selectedType === f.value
+
+            const label = (
+              <Text
+                style={
+                  selected ? styles.filterTextActive : styles.filterTextIdle
+                }
+              >
+                {f.label}
+              </Text>
+            )
+
+            return (
+              <Pressable
+                key={f.key}
+                onPress={() => {
+                  if (f.value === null) setSelectedType(null)
+                  else
+                    setSelectedType(
+                      selectedType === f.value ? null : f.value
+                    )
+                }}
+                style={({ pressed }) => [
+                  styles.filterPress,
+                  pressed && { opacity: 0.88 },
+                ]}
+              >
+                {selected ? (
+                  <LinearGradient
+                    colors={[PRIMARY, GRADIENT_END]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.filterPillGradient}
+                  >
+                    {label}
+                  </LinearGradient>
+                ) : (
+                  <View style={styles.filterPillGlass}>{label}</View>
+                )}
+              </Pressable>
+            )
+          })}
+        </ScrollView>
+      </View>
+    ),
+    [searchText, searchFocused, selectedType]
   )
 
   return (
     <View style={styles.container}>
       <AppTopBar from="journal" />
 
-      {/* Filters */}
-      <View style={[styles.filtersContainer, { paddingHorizontal: gutter }]}>
-        {/* Type pills */}
-        <View style={styles.typeFilterContainer}>
-          {APPROACH_TYPES.map((type) => (
-            <Pressable
-              key={type.value}
-              style={[
-                styles.typePill,
-                selectedType === type.value && styles.typePillActive,
-              ]}
-              onPress={() =>
-                setSelectedType(selectedType === type.value ? null : type.value)
-              }
-            >
-              <Text
-                style={[
-                  styles.typePillText,
-                  selectedType === type.value && styles.typePillTextActive,
-                ]}
-              >
-                {type.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-
-        {/* Date range button */}
-        <Pressable
-          style={styles.dateRangeButton}
-          onPress={() => {
-            setPickingStart(true)
-            setShowDateRangeModal(true)
-          }}
-        >
-          <Text style={styles.dateRangeButtonText}>
-            {startDate ? `${startDate.toLocaleDateString('he-IL')}` : 'בחר תאריכים'}
-          </Text>
-        </Pressable>
-
-        {/* Search input */}
-        <TextInput
-          style={styles.searchInput}
-          placeholder="חיפוש לפי מיקום..."
-          placeholderTextColor="#adaaaa"
-          value={searchText}
-          onChangeText={setSearchText}
-          textAlign="right"
-        />
-
-        {/* Clear filters button */}
-        {(selectedType || searchText || startDate || endDate) && (
-          <Pressable style={styles.clearButton} onPress={handleClearFilters}>
-            <Text style={styles.clearButtonText}>נקה מסננים</Text>
-          </Pressable>
-        )}
-      </View>
-
-      {/* Date picker modal */}
-      {showDateRangeModal && (
-        <DateTimePicker
-          value={pickingStart ? startDate || new Date() : endDate || new Date()}
-          mode="date"
-          display="spinner"
-          onChange={handleDateChange}
-          maximumDate={new Date()}
-        />
-      )}
-
-      {/* List or empty state */}
       {filteredApproaches.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>אין רישומים</Text>
-          <Text style={styles.emptyStateSubtext}>
-            {approaches.length === 0
-              ? 'התחל לתעד גישות כדי לראות אותן כאן'
-              : 'אין גישות המתאימות למסננים'}
-          </Text>
+        <View style={styles.emptyWrap}>
+          <View style={{ paddingHorizontal: gutter }}>{listHeader}</View>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>אין רישומים</Text>
+            <Text style={styles.emptyStateSubtext}>
+              {approaches.length === 0
+                ? 'התחל לתעד גישות כדי לראות אותן כאן'
+                : 'אין גישות המתאימות למסננים'}
+            </Text>
+          </View>
         </View>
       ) : (
         <FlatList
-          data={filteredApproaches.filter(
-            (a) => a.location && a.chemistry_score !== null
-          )}
+          data={filteredApproaches}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
+          ListHeaderComponent={listHeader}
+          renderItem={({ item, index }) => (
             <JournalListItem
-              approach={item as Approach}
+              approach={item}
+              listIndex={index}
               onPress={() => handleSelectApproach(item)}
             />
           )}
+          ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
           contentContainerStyle={listContentStyle}
-          scrollEnabled={true}
         />
       )}
 
-      {/* Detail modal */}
       {selectedApproach && (
         <ApproachDetailScreen
           approach={selectedApproach}
@@ -224,77 +224,91 @@ export default function JournalScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0e0e0e',
+    backgroundColor: BG,
   },
-  filtersContainer: {
-    paddingVertical: 12,
-    gap: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
+  headerBlock: {
+    paddingBottom: 8,
+    gap: 24,
+    marginBottom: 8,
   },
-  typeFilterContainer: {
-    flexDirection: 'row-reverse',
-    gap: 8,
-  },
-  typePill: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#20201f',
-    borderWidth: 1,
-    borderColor: 'transparent',
-  },
-  typePillActive: {
-    backgroundColor: '#81ecff',
-    borderColor: '#81ecff',
-  },
-  typePillText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#adaaaa',
-    textAlign: 'center',
-  },
-  typePillTextActive: {
-    color: '#000000',
-  },
-  dateRangeButton: {
-    backgroundColor: '#20201f',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 4,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  dateRangeButtonText: {
-    color: '#ffffff',
-    textAlign: 'right',
-    fontSize: 14,
+  searchWrap: {
+    position: 'relative',
   },
   searchInput: {
-    backgroundColor: '#20201f',
+    width: '100%',
+    backgroundColor: SURFACE_HIGH,
+    borderWidth: 0,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#ffffff',
-    borderRadius: 4,
-    fontSize: 14,
+    minHeight: 56,
+    paddingVertical: 12,
+    paddingStart: 16,
+    paddingEnd: 48,
+    fontSize: 18,
+    fontWeight: '500',
+    color: ON_SURFACE,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
-  clearButton: {
-    backgroundColor: '#ff6b6b',
-    paddingHorizontal: 12,
+  searchInputFocused: {
+    borderBottomColor: PRIMARY,
+  },
+  searchIcon: {
+    position: 'absolute',
+    end: 16,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterScroll: {
+    flexDirection: 'row-reverse',
+    gap: 12,
+    paddingBottom: 8,
+    alignItems: 'center',
+  },
+  filterPress: {
+    flexShrink: 0,
+  },
+  filterPillGradient: {
+    paddingHorizontal: 24,
     paddingVertical: 8,
-    borderRadius: 4,
+    borderRadius: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  clearButtonText: {
-    color: '#ffffff',
+  filterPillGlass: {
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    borderRadius: 9999,
+    backgroundColor: GLASS_BG,
+    borderWidth: 1,
+    borderColor: OUTLINE_15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterTextActive: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: ON_PRIMARY_FIXED,
     textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
+  },
+  filterTextIdle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: ON_VARIANT,
+    textAlign: 'center',
   },
   listContent: {
-    paddingVertical: 12,
-    gap: 12,
+    paddingTop: 8,
+  },
+  emptyWrap: {
+    flex: 1,
+    paddingHorizontal: 0,
   },
   emptyState: {
     flex: 1,
@@ -305,13 +319,13 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ffffff',
+    color: ON_SURFACE,
     textAlign: 'center',
     marginBottom: 8,
   },
   emptyStateSubtext: {
     fontSize: 14,
-    color: '#adaaaa',
+    color: ON_VARIANT,
     textAlign: 'center',
   },
 })

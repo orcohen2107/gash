@@ -24,6 +24,7 @@ export default function CategoryFilter({ selectedCategory, onSelectCategory }: C
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
+      style={styles.scrollRtl}
       contentContainerStyle={[styles.container, { paddingHorizontal: gutter }]}
       scrollEventThrottle={16}
     >
@@ -51,10 +52,15 @@ export default function CategoryFilter({ selectedCategory, onSelectCategory }: C
 }
 
 const styles = StyleSheet.create({
+  /** כיוון LTR + row-reverse: הצ׳יפים מתחילים מימין (הכל ראשון) ונגללים שמאלה */
+  scrollRtl: {
+    direction: 'ltr',
+  },
   container: {
     paddingVertical: 4,
     gap: 12,
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
   },
   button: {
     paddingHorizontal: 20,
