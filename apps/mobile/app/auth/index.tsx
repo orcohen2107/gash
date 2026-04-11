@@ -1,175 +1,328 @@
-import React, { useState } from 'react'
-import { View, StyleSheet, ScrollView, SafeAreaView, Text } from 'react-native'
+import React from 'react'
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Platform,
+  useWindowDimensions,
+} from 'react-native'
 import { useRouter } from 'expo-router'
-import { Controller, useForm } from 'react-hook-form'
-import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
-import Toast from 'react-native-toast-message'
-import { supabase } from '@/lib/supabase'
-import Button from '@/components/ui/Button'
-import Input from '@/components/ui/Input'
+import { LinearGradient } from 'expo-linear-gradient'
+import { MaterialIcons } from '@expo/vector-icons'
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { AuthScreenBackdrop, authSurfaceColor } from '@/components/auth/AuthScreenBackdrop'
+import { welcomeScreenPaddingX } from '@/lib/responsiveLayout'
 
-const phoneSchema = z.object({
-  phone: z
-    .string()
-    .min(10, 'מספר לא חוקי')
-    .regex(
-      /^(\+972|0)?[5][0-9]{8}$/,
-      'מספר לא חוקי. תן מספר ישראלי.'
-    ),
-})
+const SURFACE_CONTAINER = '#1a1a1a'
+const ON_SURFACE = '#ffffff'
+const ON_SURFACE_VARIANT = '#adaaaa'
+const ON_PRIMARY_FIXED = '#003840'
+const PRIMARY = '#81ecff'
+const PRIMARY_FIXED = '#00e3fd'
 
-type PhoneFormData = z.infer<typeof phoneSchema>
-
-export default function PhoneAuthScreen() {
+export default function WelcomeScreen() {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
-
-  const { control, handleSubmit } = useForm<PhoneFormData>({
-    resolver: zodResolver(phoneSchema),
-    defaultValues: { phone: '' },
-  })
-
-  const showValidationToast = () => {
-    Toast.show({
-      type: 'error',
-      text1: 'מספר לא חוקי. תן מספר ישראלי.',
-      position: 'bottom',
-      autoHide: true,
-      visibilityTime: 3000,
-    })
-  }
-
-  const handlePhoneSubmit = async (data: PhoneFormData) => {
-    setLoading(true)
-
-    try {
-      let normalizedPhone = data.phone.replace(/\s/g, '')
-      if (normalizedPhone.startsWith('0')) {
-        normalizedPhone = '+972' + normalizedPhone.slice(1)
-      } else if (!normalizedPhone.startsWith('+972')) {
-        normalizedPhone = '+972' + normalizedPhone
-      }
-
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: normalizedPhone,
-      })
-
-      if (error) {
-        const message = error.message.includes('phone')
-          ? 'מספר לא חוקי. תן מספר ישראלי.'
-          : 'בעיה בחיבור. בדוק את הרשת.'
-
-        Toast.show({
-          type: 'error',
-          text1: message,
-          position: 'bottom',
-          autoHide: true,
-          visibilityTime: 3000,
-        })
-      } else {
-        router.push({
-          pathname: '/auth/verify',
-          params: { phone: normalizedPhone },
-        })
-      }
-    } catch {
-      Toast.show({
-        type: 'error',
-        text1: 'בעיה בחיבור. בדוק את הרשת.',
-        position: 'bottom',
-        autoHide: true,
-        visibilityTime: 3000,
-      })
-    } finally {
-      setLoading(false)
-    }
-  }
+  const insets = useSafeAreaInsets()
+  const { width } = useWindowDimensions()
+  const welcomePad = welcomeScreenPaddingX(width)
+  const featuresGap = width < 360 ? 20 : width > 430 ? 56 : 40
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
-        <View style={styles.container}>
-          <Text style={styles.title}>כניסה חדשה</Text>
+    <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
+      <AuthScreenBackdrop variant="welcome" />
 
-          <Text style={styles.subtitle}>הכנס את מספר הטלפון שלך כדי להתחיל</Text>
+      {/* פס דק בראש — כמו ב־HTML */}
+      <LinearGradient
+        colors={['rgba(129,236,255,0)', 'rgba(129,236,255,0.4)', 'rgba(129,236,255,0)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.topAccent}
+        pointerEvents="none"
+      />
 
-          <View style={styles.formSection}>
-            <Controller
-              control={control}
-              name="phone"
-              render={({ field: { value, onChange } }) => (
-                <Input
-                  placeholder="+972 50 123 4567"
-                  value={value}
-                  onChangeText={onChange}
-                  keyboardType="phone-pad"
-                />
-              )}
-            />
+      <ScrollView
+        contentContainerStyle={[
+          styles.scroll,
+          {
+            paddingHorizontal: welcomePad,
+            paddingBottom: insets.bottom + 96,
+          },
+        ]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        bounces
+      >
+        <View style={styles.main}>
+          {/* לוגו + הילה */}
+          <View style={styles.logoWrap}>
+            <View style={styles.logoGlow} />
+            <View style={styles.logoBox}>
+              <LinearGradient
+                colors={['rgba(255,255,255,0.12)', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <Text style={styles.logoText}>גש</Text>
+            </View>
           </View>
 
-          <View style={styles.buttonSection}>
-            <Button
-              title={loading ? 'שליחה...' : 'שלח קוד'}
-              onPress={handleSubmit(handlePhoneSubmit, showValidationToast)}
-              disabled={loading}
-              loading={loading}
-            />
+          <View style={styles.headlineBlock}>
+            <View style={styles.titleWrap}>
+              <Text
+                style={[styles.title, width < 360 ? styles.titleCompact : null]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.68}
+                maxFontSizeMultiplier={1.2}
+              >
+                גש - המאמן האישי שלך
+              </Text>
+            </View>
+            <Text style={styles.subtitle}>הדרך שלך להצליח עם נשים מתחילה כאן</Text>
           </View>
 
-          <Text style={styles.helpText}>אנחנו נשלח קוד אימות ל-SMS שלך</Text>
+          <View style={styles.buttonBlock}>
+            <TouchableOpacity
+              style={styles.primaryOuter}
+              onPress={() => router.push('/auth/login')}
+              activeOpacity={0.92}
+            >
+              <LinearGradient
+                colors={['#81ecff', '#00d4ec']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.primaryGradient}
+              >
+                <Text style={styles.primaryButtonText}>התחברות</Text>
+                <MaterialIcons name="chevron-left" size={24} color={ON_PRIMARY_FIXED} style={styles.chevron} />
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryButton}
+              onPress={() => router.push('/auth/register')}
+              activeOpacity={0.88}
+            >
+              <Text style={styles.secondaryButtonText}>הרשמה</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
-      <Toast />
+      <View
+        style={[
+          styles.featuresBar,
+          { paddingBottom: insets.bottom + 10, paddingHorizontal: welcomePad, gap: featuresGap },
+        ]}
+        pointerEvents="box-none"
+      >
+        <View style={styles.feature}>
+          <MaterialIcons name="security" size={22} color="rgba(173,170,170,0.35)" />
+          <Text style={styles.featureLabel}>אנונימיות מלאה</Text>
+        </View>
+        <View style={styles.feature}>
+          <MaterialIcons name="psychology" size={22} color="rgba(173,170,170,0.35)" />
+          <Text style={styles.featureLabel}>AI מתקדם</Text>
+        </View>
+        <View style={styles.feature}>
+          <MaterialIcons name="verified" size={22} color="rgba(173,170,170,0.35)" />
+          <Text style={styles.featureLabel}>תוצאות מוכחות</Text>
+        </View>
+      </View>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  safeContainer: {
+  safe: {
     flex: 1,
-    backgroundColor: '#0e0e0e',
+    backgroundColor: authSurfaceColor,
+    overflow: 'hidden',
   },
-  scrollContainer: {
+  topAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 4,
+    zIndex: 20,
+    opacity: 0.2,
+  },
+  scroll: {
     flexGrow: 1,
+    paddingTop: 32,
+  },
+  main: {
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 512,
+    alignSelf: 'center',
+  },
+  logoWrap: {
+    marginBottom: 48,
+    alignItems: 'center',
     justifyContent: 'center',
   },
-  container: {
-    paddingHorizontal: 24,
-    paddingVertical: 40,
+  logoGlow: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(129, 236, 255, 0.2)',
+    transform: [{ scale: 1.15 }],
+  },
+  logoBox: {
+    width: 128,
+    height: 128,
+    borderRadius: 40,
+    backgroundColor: SURFACE_CONTAINER,
     alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+      },
+      android: { elevation: 12 },
+    }),
+  },
+  logoText: {
+    fontSize: 64,
+    fontWeight: '900',
+    color: PRIMARY_FIXED,
+    letterSpacing: -2,
+    fontFamily: Platform.select({ ios: 'System', android: 'sans-serif' }),
+    ...Platform.select({
+      ios: {
+        shadowColor: PRIMARY,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.45,
+        shadowRadius: 12,
+      },
+    }),
+  },
+  headlineBlock: {
+    alignItems: 'center',
+    gap: 24,
+    marginBottom: 8,
+    width: '100%',
+    maxWidth: 448,
+    paddingHorizontal: 4,
+  },
+  titleWrap: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleCompact: {
+    fontSize: 28,
+    letterSpacing: -0.4,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 8,
-    fontFamily: 'Inter',
+    width: '100%',
+    fontSize: 34,
+    fontWeight: '900',
+    color: ON_SURFACE,
     textAlign: 'center',
+    letterSpacing: -0.6,
+    fontFamily: Platform.select({ ios: 'System', android: 'sans-serif' }),
+    ...Platform.select({
+      ios: {
+        textShadowColor: 'rgba(129, 236, 255, 0.35)',
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 20,
+      },
+    }),
   },
   subtitle: {
-    fontSize: 16,
-    color: '#adaaaa',
-    marginBottom: 32,
+    fontSize: 18,
+    fontWeight: '500',
+    color: ON_SURFACE_VARIANT,
+    textAlign: 'center',
+    lineHeight: 28,
+    fontFamily: 'Inter',
+  },
+  buttonBlock: {
+    width: '100%',
+    maxWidth: 384,
+    marginTop: 56,
+    gap: 16,
+    alignSelf: 'center',
+  },
+  primaryOuter: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: PRIMARY,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+      },
+      android: { elevation: 6 },
+    }),
+  },
+  primaryGradient: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    gap: 6,
+  },
+  primaryButtonText: {
+    color: ON_PRIMARY_FIXED,
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  chevron: {
+    marginTop: 2,
+  },
+  secondaryButton: {
+    minHeight: 64,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(72, 72, 71, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  secondaryButtonText: {
+    color: PRIMARY,
+    fontSize: 18,
+    fontWeight: '700',
+    fontFamily: 'Inter',
+  },
+  featuresBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    paddingTop: 8,
+  },
+  feature: {
+    alignItems: 'center',
+    gap: 4,
+    minWidth: 72,
+  },
+  featureLabel: {
+    color: 'rgba(173, 170, 170, 0.35)',
+    fontSize: 10,
+    fontWeight: '700',
     fontFamily: 'Inter',
     textAlign: 'center',
-    lineHeight: 24,
-  },
-  formSection: {
-    width: '100%',
-    marginBottom: 24,
-  },
-  buttonSection: {
-    width: '100%',
-    marginBottom: 24,
-  },
-  helpText: {
-    fontSize: 12,
-    color: '#adaaaa',
-    textAlign: 'center',
-    fontFamily: 'Inter',
-    lineHeight: 18,
   },
 })

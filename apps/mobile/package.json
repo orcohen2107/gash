@@ -2,7 +2,7 @@
   "name": "@gash/mobile",
   "version": "1.0.0",
   "private": true,
-  "main": "expo-router/build/index.js",
+  "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",

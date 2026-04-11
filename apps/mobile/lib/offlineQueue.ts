@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import Toast from 'react-native-toast-message'
 
 export interface QueuedOperation {
   id: string
@@ -95,12 +94,6 @@ export class OfflineQueue {
         console.error(`[OfflineQueue] Failed to process operation ${op.id}:`, error.message)
       }
     }
-
-    Toast.show({
-      type: 'success',
-      text1: 'סינכרון הושלם',
-      text2: `${success} פעולות עודכנו`,
-    })
 
     console.log(`[OfflineQueue] Processing complete: ${success} success, ${failed} failed`)
     return { success, failed }

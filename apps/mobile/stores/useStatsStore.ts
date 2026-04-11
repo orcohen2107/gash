@@ -14,6 +14,81 @@ const client = createApiClient({
   onAuthError: handleAuthError,
 })
 
+const INSIGHT_FALLBACK = 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
+
+/** השרת לעיתים מחזיר רק `{ weeklyMission }` (ניתוח אחרון מתחת ל־24 שעות); המטמון הישן שמר לפעמים רק מערך — מתאימים תמיד ל־InsightsResponse */
+function normalizeInsightsResponse(raw: unknown): InsightsResponse {
+  const emptyMission = {
+    title: '',
+    description: '',
+    target: 0,
+    targetType: '',
+  }
+  const base: InsightsResponse = {
+    insights: [INSIGHT_FALLBACK, '', ''],
+    weeklyMission: emptyMission,
+    trend: 'יציב',
+    trendExplanation: '',
+  }
+
+  if (raw == null) {
+    return base
+  }
+
+  if (Array.isArray(raw)) {
+    return {
+      ...base,
+      insights: [
+        String(raw[0] ?? INSIGHT_FALLBACK),
+        String(raw[1] ?? ''),
+        String(raw[2] ?? ''),
+      ],
+    }
+  }
+
+  if (typeof raw !== 'object') {
+    return base
+  }
+
+  const r = raw as Record<string, unknown>
+  const ins = r.insights
+  let triple: [string, string, string] = [...base.insights]
+  if (Array.isArray(ins)) {
+    triple = [
+      String(ins[0] ?? INSIGHT_FALLBACK),
+      String(ins[1] ?? ''),
+      String(ins[2] ?? ''),
+    ]
+  }
+
+  let weeklyMission = emptyMission
+  const wm = r.weeklyMission
+  if (wm && typeof wm === 'object') {
+    const m = wm as Record<string, unknown>
+    const t = m.target
+    weeklyMission = {
+      title: String(m.title ?? ''),
+      description: String(m.description ?? ''),
+      target:
+        typeof t === 'number' && !Number.isNaN(t)
+          ? t
+          : Number(t) || 0,
+      targetType: String(m.targetType ?? ''),
+    }
+  }
+
+  const tr = r.trend
+  const trend: InsightsResponse['trend'] =
+    tr === 'עולה' || tr === 'יורד' || tr === 'יציב' ? tr : 'יציב'
+
+  return {
+    insights: triple,
+    weeklyMission,
+    trend,
+    trendExplanation: typeof r.trendExplanation === 'string' ? r.trendExplanation : '',
+  }
+}
+
 interface StatsStore {
   streak: number
   totalApproaches: number
@@ -74,10 +149,13 @@ export const useStatsStore = create<StatsStore>()(
           approaches.forEach((a) => {
             typeCounts[a.approach_type] = (typeCounts[a.approach_type] ?? 0) + 1
           })
+          const typeKeys = Object.keys(typeCounts)
           const topApproachType =
-            Object.keys(typeCounts).reduce((best, type) =>
-              (typeCounts[type] ?? 0) > (typeCounts[best] ?? 0) ? type : best
-            ) || null
+            typeKeys.length === 0
+              ? null
+              : (typeKeys.reduce((best, type) =>
+                  (typeCounts[type] ?? 0) > (typeCounts[best] ?? 0) ? type : best
+                ) as ApproachType)
 
           set({
             totalApproaches,
@@ -91,41 +169,32 @@ export const useStatsStore = create<StatsStore>()(
           set({ isLoadingInsights: true })
           try {
             // Check cache first (stale-while-revalidate pattern)
-            const cachedWithMeta = await cache.getWithMetadata<InsightsResponse>('insights')
+            const cachedWithMeta = await cache.getWithMetadata<unknown>('insights')
 
-            if (cachedWithMeta.data && !cachedWithMeta.isExpired) {
-              // Return fresh cached data
+            if (cachedWithMeta.data != null && !cachedWithMeta.isExpired) {
               set({ isLoadingInsights: false })
-              return cachedWithMeta.data
+              return normalizeInsightsResponse(cachedWithMeta.data)
             }
 
-            // Fetch fresh from server
+            // Fetch fresh from server (תגובה חלקית אפשרית — ראה route GET /api/insights)
             const response = await client.insights.get()
-            const insights = response.insights
+            const normalized = normalizeInsightsResponse(response)
 
-            // Cache for 1 hour
-            await cache.set('insights', insights, CACHE_PRESETS.LONG)
+            await cache.set('insights', normalized, CACHE_PRESETS.LONG)
 
             set({ isLoadingInsights: false })
-            return insights
+            return normalized
           } catch (err) {
             console.error('Failed to fetch insights:', err)
             set({ isLoadingInsights: false })
 
-            // Try to return stale cache if available
-            const cachedWithMeta = await cache.getWithMetadata<InsightsResponse>('insights')
-            if (cachedWithMeta.data) {
+            const cachedWithMeta = await cache.getWithMetadata<unknown>('insights')
+            if (cachedWithMeta.data != null) {
               console.warn('Returning stale cached insights due to fetch error')
-              return cachedWithMeta.data
+              return normalizeInsightsResponse(cachedWithMeta.data)
             }
 
-            // Fallback response
-            return {
-              insights: ['המשך לתעד גישות כדי לקבל תובנות מ-AI', '', ''],
-              weeklyMission: { title: '', description: '', target: 0, targetType: '' },
-              trend: 'יציב',
-              trendExplanation: '',
-            }
+            return normalizeInsightsResponse(null)
           }
         },
 

@@ -8,10 +8,15 @@ export const APPROACH_TYPE_LABELS: Record<ApproachType, string> = {
 }
 
 export const FOLLOW_UP_LABELS: Record<FollowUpType, string> = {
-  meeting: 'פגישה',
+  meeting: 'דייט / פגישה',
   text: 'הודעה',
   instagram: 'אינסטגרם',
   nothing: 'כלום',
+  phone: 'מספר טלפון',
+  instant: 'באותו הרגע — ניצוץ / משהו קרה',
+  coffee: 'ישבנו לקפה',
+  kiss: 'נישקתי',
+  went_home: 'הלכנו הביתה',
 }
 
 export const CHEMISTRY_LABELS: Record<number, string> = {
@@ -163,8 +168,13 @@ export const TIPS: Tip[] = [
 export interface Badge {
   id: 'starter' | 'seasoned' | 'legend' | 'dominator' | 'seven-day-streak' | 'direct-master' | 'charmer' | 'savant'
   title: string
+  /** שורה קצרה ברשימה */
   description: string
   emoji: string
+  /** משפט אחד — מה מייצג התג */
+  whatIs: string
+  /** הסבר מפורט איך משיגים (מסתנכרן עם הלוגיקה באפליקציה) */
+  howToUnlock: string
 }
 
 export const BADGES: Badge[] = [
@@ -173,48 +183,69 @@ export const BADGES: Badge[] = [
     title: 'התחלה',
     description: '5 גישות מתועדות',
     emoji: '🌱',
+    whatIs: 'תג התחלה — מראה שהתחלת לתעד גישות באפליקציה.',
+    howToUnlock:
+      'תעד לפחות 5 גישות בטאב «תיעוד» (כל שמירה נספרת). הנתונים מגיעים מהגישות השמורות אצלך — אין צורך להגדיר כלום בנפרד.',
   },
   {
     id: 'seasoned',
     title: 'מנוסה',
     description: '10 גישות מתועדות',
     emoji: '🔥',
+    whatIs: 'תג למי שכבר בונה הרגל של תיעוד עקבי.',
+    howToUnlock: 'הגע ל־10 גישות מתועדות בסך הכל (מחושב אוטומטית מכל הרישומים שלך).',
   },
   {
     id: 'legend',
     title: 'אגדה',
     description: '25 גישות מתועדות',
     emoji: '🏆',
+    whatIs: 'תג להישג של ניסיון משמעותי בתיעוד.',
+    howToUnlock: 'הגע ל־25 גישות מתועדות בסך הכל.',
   },
   {
     id: 'dominator',
     title: 'דומיננט',
     description: '50 גישות מתועדות',
     emoji: '👑',
+    whatIs: 'תג למתעדים ברמה גבוהה — הרבה ניסוי בשטח.',
+    howToUnlock: 'הגע ל־50 גישות מתועדות בסך הכל.',
   },
   {
     id: 'seven-day-streak',
     title: '7 ימים',
     description: '7 ימים רצופים עם גישה',
     emoji: '🌟',
+    whatIs: 'תג לרצף יומי — יום אחרי יום עם לפחות גישה אחת מתועדת.',
+    howToUnlock:
+      'שמור על רצף של 7 ימים רצופים שבכל אחד מהם יש לפחות גישה אחת מתועדת. הרצף מחושב מהנתונים שלך ביומן.',
   },
   {
     id: 'direct-master',
-    title: 'מנהל ישיר',
-    description: '10 גישות ישירות עם >60% הצלחה',
+    title: 'אלוף דירקט',
+    description: '10 גישות ישירות עם מעל 60% הצלחה',
     emoji: '🎯',
+    whatIs: 'תג למי שמצליח עם גישה ישירה — לפי סוג הגישה והתגובה שסימנת.',
+    howToUnlock:
+      'צריך לפחות 10 גישות שסומנו כגישה ישירה (direct). מתוכן, אחוז התגובות שסומנו כחיוביות או ניטרליות צריך להיות מעל 60%.',
   },
   {
     id: 'charmer',
-    title: 'קוסם',
-    description: '10 גישות בהומור עם >70% הצלחה',
+    title: 'מלך ההומור',
+    description: '10 גישות בהומור עם מעל 70% הצלחה',
     emoji: '💫',
+    whatIs: 'תג למי שמצליח עם גישה בהומור.',
+    howToUnlock:
+      'לפחות 10 גישות שסומנו כהומור, ומעל 70% מהן עם תגובה חיובית או ניטרלית (כפי שסימנת בטופס).',
   },
   {
     id: 'savant',
     title: 'מומחה',
     description: '5 משימות שבועיות השלמו',
     emoji: '🧠',
+    whatIs: 'תג למי שמקיים משימות שבועיות באפליקציה.',
+    howToUnlock:
+      'השלם 5 משימות שבועיות (מסך הטיפים — «סמן כבוצע» כשהיעד הושג). המונה נשמר באפליקציה ומתעדכן כשהשרת מאשר השלמה.',
   },
 ]
 

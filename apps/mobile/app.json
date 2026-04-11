@@ -2,13 +2,15 @@
   "expo": {
     "name": "gash",
     "slug": "gash",
+    "owner": "gash-app",
+    "scheme": "gash",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0e0e0e"
     },
     "ios": {
       "supportsTabletMode": false,
@@ -24,18 +26,31 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "extra": {
+      "eas": {
+        "projectId": "4b484ada-4191-472d-aa18-4c1da18cd455"
+      }
+    },
     "plugins": [
-      [
-        "expo-router",
-        {
-          "origin": "%s.exp.direct"
-        }
-      ],
+      "expo-router",
       [
         "expo-notifications",
         {
           "icon": "./assets/icon.png",
           "color": "#ffffff"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "האפליקציה ניגשת לתמונות כדי לעדכן את תמונת הפרופיל שלך."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "גש נדרשת לגישה למיקרופון כדי להמיר דיבור לטקסט בהודעות למאמן.",
+          "speechRecognitionPermission": "גש משתמשת בזיהוי דיבור של המערכת כדי להפוך את דיבורך לטקסט."
         }
       ]
     ],

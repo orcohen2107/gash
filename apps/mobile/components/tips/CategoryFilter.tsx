@@ -1,45 +1,49 @@
 import React from 'react'
 import { View, Pressable, Text, StyleSheet, ScrollView } from 'react-native'
 import type { Tip } from '@gash/constants'
-import { TIP_CATEGORIES } from '@gash/constants'
+import { useHorizontalGutter } from '@/lib/responsiveLayout'
+
+/** ערכי סינון פנימיים — תוויות במוקאפ: הכל, גישה, שיחה, ביטחון */
+export type TipsFilterValue = 'all' | Tip['category']
 
 interface CategoryFilterProps {
-  selectedCategory: Tip['category'] | 'all'
-  onSelectCategory: (category: Tip['category'] | 'all') => void
+  selectedCategory: TipsFilterValue
+  onSelectCategory: (category: TipsFilterValue) => void
 }
 
-export default function CategoryFilter({ selectedCategory, onSelectCategory }: CategoryFilterProps) {
-  const categories: Array<{ label: string; value: Tip['category'] | 'all' }> = [
-    { label: 'כל', value: 'all' },
-    { label: 'ביטחון', value: 'ביטחון' },
-    { label: 'אישור', value: 'אישור' },
-    { label: 'זיהוי', value: 'זיהוי' },
-    { label: 'ליווי', value: 'ליווי' },
-  ]
+const FILTERS: Array<{ label: string; value: TipsFilterValue }> = [
+  { label: 'הכל', value: 'all' },
+  { label: 'גישה', value: 'זיהוי' },
+  { label: 'שיחה', value: 'אישור' },
+  { label: 'ביטחון', value: 'ביטחון' },
+]
 
+export default function CategoryFilter({ selectedCategory, onSelectCategory }: CategoryFilterProps) {
+  const gutter = useHorizontalGutter()
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.container}
+      style={styles.scrollRtl}
+      contentContainerStyle={[styles.container, { paddingHorizontal: gutter }]}
       scrollEventThrottle={16}
     >
-      {categories.map((category) => (
+      {FILTERS.map((item) => (
         <Pressable
-          key={category.value}
-          onPress={() => onSelectCategory(category.value as Tip['category'] | 'all')}
+          key={item.value}
+          onPress={() => onSelectCategory(item.value)}
           style={[
             styles.button,
-            selectedCategory === category.value && styles.buttonActive,
+            selectedCategory === item.value && styles.buttonActive,
           ]}
         >
           <Text
             style={[
               styles.buttonText,
-              selectedCategory === category.value && styles.buttonTextActive,
+              selectedCategory === item.value && styles.buttonTextActive,
             ]}
           >
-            {category.label}
+            {item.label}
           </Text>
         </Pressable>
       ))}
@@ -48,30 +52,32 @@ export default function CategoryFilter({ selectedCategory, onSelectCategory }: C
 }
 
 const styles = StyleSheet.create({
+  /** כיוון LTR + row-reverse: הצ׳יפים מתחילים מימין (הכל ראשון) ונגללים שמאלה */
+  scrollRtl: {
+    direction: 'ltr',
+  },
   container: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
+    paddingVertical: 4,
+    gap: 12,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
   },
   button: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#444444',
-    backgroundColor: 'transparent',
+    borderRadius: 999,
+    backgroundColor: '#20201f',
   },
   buttonActive: {
     backgroundColor: '#81ecff',
-    borderColor: '#81ecff',
   },
   buttonText: {
     color: '#adaaaa',
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '500',
   },
   buttonTextActive: {
-    color: '#000000',
-    fontWeight: '600',
+    color: '#003840',
+    fontWeight: '700',
   },
 })

@@ -1,7 +1,17 @@
 import React, { useEffect, useState, useCallback } from 'react'
-import { View, ScrollView, StyleSheet, Text } from 'react-native'
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  Pressable,
+  ActivityIndicator,
+} from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'
 import MissionCard from '@/components/dashboard/MissionCard'
+import { AppTopBar } from '@/components/layout/AppTopBar'
 import { useBadgesStore } from '@/stores/useBadgesStore'
 import { useStatsStore } from '@/stores/useStatsStore'
 import { useLogStore } from '@/stores/useLogStore'
@@ -10,141 +20,226 @@ import KPICard from '@/components/dashboard/KPICard'
 import InsightCard from '@/components/dashboard/InsightCard'
 import ChemistryLineChart from '@/components/dashboard/ChemistryLineChart'
 import SuccessBarChart from '@/components/dashboard/SuccessBarChart'
+import { APPROACH_TYPE_LABELS, CHEMISTRY_LABELS } from '@gash/constants'
+import { horizontalGutter } from '@/lib/responsiveLayout'
+import {
+  injectDashboardDevMock,
+  clearDashboardDevMock,
+} from '@/lib/dashboardDevMock'
+import { loadDashboardBundle } from '@/lib/loadDashboardBundle'
 
-const APPROACH_TYPE_LABELS: Record<string, string> = {
-  direct: 'ישיר',
-  situational: 'סיטואטיבי',
-  humor: 'הומור',
-  online: 'אונליין',
-}
+const BG = '#0e0e0e'
+const INSIGHT_FALLBACK = 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
 
 export default function DashboardScreen() {
+  const { width } = useWindowDimensions()
+  const gutter = horizontalGutter(width)
+  const tabBarHeight = useBottomTabBarHeight()
   const mission = useBadgesStore((state) => state.mission)
   const isLoadingMission = useBadgesStore((state) => state.isLoadingMission)
-  const fetchMission = useBadgesStore((state) => state.fetchMission)
-  const { totalApproaches, successRate, avgChemistry, topApproachType, isLoadingInsights, fetchInsights } = useStatsStore()
+  const { totalApproaches, successRate, avgChemistry, topApproachType } = useStatsStore()
   const { approaches } = useLogStore()
   const [insight, setInsight] = useState<string>('')
+  const [insightUpdatedAt, setInsightUpdatedAt] = useState<Date | null>(null)
+  const [bundleLoading, setBundleLoading] = useState(true)
 
-  // Track screen view
+  const cardWidth = (width - 2 * gutter - 16) / 2
+
   useFocusEffect(
     useCallback(() => {
       analytics.trackScreenView('dashboard')
-      // Track insights viewed when dashboard is shown
       analytics.trackInsightsViewed(approaches.length)
     }, [approaches.length])
   )
 
-  // Load mission and insight on mount and subscribe to changes
   useEffect(() => {
-    fetchMission()
-    loadInsight()
+    useBadgesStore.setState({ isLoadingMission: true })
     const unsubscribe = useLogStore.getState().subscribeToChanges()
+    void (async () => {
+      try {
+        const data = await loadDashboardBundle()
+        setInsight(data.insights.insights[0] ?? INSIGHT_FALLBACK)
+        setInsightUpdatedAt(new Date())
+      } catch (err) {
+        console.error('Failed to load dashboard bundle:', err)
+        useBadgesStore.setState({ isLoadingMission: false })
+        setInsight(INSIGHT_FALLBACK)
+        setInsightUpdatedAt(new Date())
+      } finally {
+        setBundleLoading(false)
+      }
+    })()
     return unsubscribe
-  }, [fetchMission])
+  }, [])
 
-  const loadInsight = async () => {
-    try {
-      const insightsData = await fetchInsights()
-      const firstInsight = insightsData.insights?.[0] || 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
-      setInsight(firstInsight)
-    } catch (err) {
-      console.error('Failed to load insight:', err)
-      setInsight('המשך לתעד גישות כדי לקבל תובנות מ-AI')
-    }
-  }
+  const chemRounded = Math.min(10, Math.max(1, Math.round(Number(avgChemistry) || 0)))
+  const chemistryWord = CHEMISTRY_LABELS[chemRounded] ?? ''
 
-  if (approaches.length === 0) {
+  if (bundleLoading) {
     return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>דשבורד</Text>
-        <Text style={styles.emptyText}>
-          התחל לתעד גישות כדי לראות ניתוחים ותובנות
-        </Text>
+      <View style={styles.safe}>
+        <AppTopBar from="dashboard" />
+        <View style={[styles.loadingBody, { paddingBottom: tabBarHeight + 32 }]}>
+          <ActivityIndicator size="large" color="#81ecff" />
+        </View>
       </View>
     )
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>דשבורד</Text>
-      </View>
+    <View style={styles.safe}>
+      <AppTopBar from="dashboard" />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingHorizontal: gutter,
+            paddingBottom: tabBarHeight + 24,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <InsightCard insight={insight} loading={false} lastUpdated={insightUpdatedAt} />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-        {/* Mission Card */}
-        <MissionCard mission={mission} loading={isLoadingMission} />
-
-        {/* KPI Cards Grid */}
         <View style={styles.kpiGrid}>
-          <KPICard label="סה״כ גישות" value={totalApproaches} icon="📊" />
-          <KPICard label="שיעור הצלחה" value={`${successRate}%`} icon="✅" />
-          <KPICard label="ממוצע כימיה" value={avgChemistry} icon="⚡" />
-          <KPICard
-            label="סוג מוביל"
-            value={topApproachType ? APPROACH_TYPE_LABELS[topApproachType] : '—'}
-            icon="🎯"
-          />
+          <View style={{ width: cardWidth }}>
+            <KPICard
+              label='סה״כ גישות'
+              value={totalApproaches}
+              icon="person-add"
+              accent="primary"
+            />
+          </View>
+          <View style={{ width: cardWidth }}>
+            <KPICard
+              label="שיעור הצלחה"
+              value={`${successRate}%`}
+              icon="trending-up"
+              accent="tertiary"
+            />
+          </View>
+          <View style={{ width: cardWidth }}>
+            <KPICard
+              label="כימיה ממוצעת"
+              value={avgChemistry.toFixed(1)}
+              icon="favorite"
+              accent="secondary"
+              subLabel={chemistryWord}
+            />
+          </View>
+          <View style={{ width: cardWidth }}>
+            <KPICard
+              label="סוג הכי מצליח"
+              value={topApproachType ? APPROACH_TYPE_LABELS[topApproachType] : '—'}
+              icon="bolt"
+              accent="primaryGlow"
+              trailingIcon={topApproachType ? 'verified' : undefined}
+            />
+          </View>
         </View>
 
-        {/* Charts */}
         <ChemistryLineChart />
         <SuccessBarChart />
 
-        {/* Insight Card */}
-        <InsightCard insight={insight} loading={isLoadingInsights} />
+        <MissionCard mission={mission} loading={isLoadingMission} />
+
+        {__DEV__ ? (
+          <View style={styles.devMock}>
+            <Text style={styles.devMockTitle}>מצב פיתוח — תצוגת מדדים</Text>
+            <Pressable
+              style={({ pressed }) => [styles.devBtn, pressed && styles.devBtnPressed]}
+              onPress={() => injectDashboardDevMock()}
+            >
+              <Text style={styles.devBtnText}>טען נתוני דמה (מקומי)</Text>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.devBtnOutline, pressed && styles.devBtnPressed]}
+              onPress={() => {
+                void (async () => {
+                  try {
+                    const data = await clearDashboardDevMock()
+                    setInsight(data.insights.insights[0] ?? INSIGHT_FALLBACK)
+                    setInsightUpdatedAt(new Date())
+                  } catch (e) {
+                    console.error(e)
+                  }
+                })()
+              }}
+            >
+              <Text style={styles.devBtnTextOutline}>החזר גישות מהשרת</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safe: {
     flex: 1,
-    backgroundColor: '#0e0e0e',
+    backgroundColor: BG,
   },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1a1a1a',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#ffffff',
-    textAlign: 'right',
-  },
-  scrollView: {
+  scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingVertical: 12,
+    paddingTop: 0,
   },
   kpiGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 4,
+    justifyContent: 'space-between',
+    rowGap: 16,
+    marginBottom: 8,
   },
-  emptyContainer: {
+  loadingBody: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    backgroundColor: '#0e0e0e',
+    paddingHorizontal: 28,
   },
-  emptyTitle: {
-    fontSize: 28,
+  devMock: {
+    marginTop: 24,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(129, 236, 255, 0.35)',
+    backgroundColor: 'rgba(38, 38, 38, 0.5)',
+    gap: 10,
+  },
+  devMockTitle: {
+    fontSize: 12,
     fontWeight: '700',
-    color: '#ffffff',
-    marginBottom: 16,
-    textAlign: 'right',
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#adaaaa',
+    color: '#81ecff',
     textAlign: 'center',
-    lineHeight: 20,
+    marginBottom: 4,
+  },
+  devBtn: {
+    backgroundColor: '#81ecff',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  devBtnOutline: {
+    borderWidth: 1,
+    borderColor: '#81ecff',
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  devBtnPressed: {
+    opacity: 0.85,
+  },
+  devBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#003840',
+  },
+  devBtnTextOutline: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#81ecff',
   },
 })

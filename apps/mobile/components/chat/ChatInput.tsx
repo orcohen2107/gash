@@ -1,8 +1,22 @@
-import { Pressable, StyleSheet, View, Text } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
-import Input from '@/components/ui/Input'
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  View,
+  TextInput,
+  Platform,
+} from 'react-native'
+import { MaterialIcons } from '@expo/vector-icons'
+import { useSpeechToTextField } from '@/lib/useSpeechToTextField'
 
-const SEND_BUTTON_SIZE = 48
+const PRIMARY = '#81ecff'
+const ON_PRIMARY_FIXED = '#003840'
+const SURFACE_HIGH = '#20201f'
+const MUTED = '#adaaaa'
+const PLACEHOLDER = 'כתוב הודעה למאמן...'
+
+const SEND_SIZE = 48
+const MIC_SIZE = 40
 
 interface ChatInputProps {
   value: string
@@ -13,68 +27,117 @@ interface ChatInputProps {
 
 export function ChatInput({ value, onChangeText, onSend, disabled = false }: ChatInputProps) {
   const isSendDisabled = disabled || value.trim().length === 0
+  const { isListening, toggleSpeech } = useSpeechToTextField(value, onChangeText, disabled)
+  const inputLocked = disabled || isListening
 
   return (
-    <View style={styles.container}>
-      <View style={styles.inputWrapper}>
-        <Input
+    <View style={styles.outer}>
+      <View style={styles.bar}>
+        <Pressable
+          onPress={onSend}
+          disabled={isSendDisabled}
+          style={[styles.sendBtn, isSendDisabled && styles.sendBtnDisabled]}
+          hitSlop={8}
+        >
+          <MaterialIcons
+            name="send"
+            size={22}
+            color={isSendDisabled ? MUTED : ON_PRIMARY_FIXED}
+            style={styles.sendIconFlip}
+          />
+        </Pressable>
+        <TextInput
+          style={styles.field}
           value={value}
           onChangeText={onChangeText}
-          placeholder="כתוב הודעה..."
+          placeholder={isListening ? 'מקשיבים…' : PLACEHOLDER}
+          placeholderTextColor="rgba(173, 170, 170, 0.5)"
           returnKeyType="send"
+          blurOnSubmit={false}
           onSubmitEditing={onSend}
-          editable={!disabled}
-          multiline={false}
+          editable={!inputLocked}
+          multiline
+          maxLength={4000}
+          textAlignVertical="top"
         />
-      </View>
-      <Pressable
-        onPress={onSend}
-        disabled={isSendDisabled}
-        style={[styles.sendButton, isSendDisabled && styles.sendButtonDisabled]}
-        hitSlop={8}
-      >
-        <LinearGradient
-          colors={isSendDisabled ? ['#444444', '#333333'] : ['#81ecff', '#00d4ec']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.sendGradient}
+        <Pressable
+          onPress={toggleSpeech}
+          disabled={disabled}
+          style={[styles.micBtn, disabled && styles.micBtnDisabled]}
+          hitSlop={8}
+          accessibilityLabel={isListening ? 'עצור הקלטה' : 'הקלט דיבור'}
         >
-          <Text style={[styles.sendIcon, { transform: [{ scaleX: -1 }] }]}>{'→'}</Text>
-        </LinearGradient>
-      </Pressable>
+          {isListening ? (
+            <ActivityIndicator size="small" color={PRIMARY} />
+          ) : (
+            <MaterialIcons name="mic" size={22} color={disabled ? MUTED : PRIMARY} />
+          )}
+        </Pressable>
+      </View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  outer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#161616',
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 8 : 10,
+    backgroundColor: 'rgba(14, 14, 14, 0.92)',
   },
-  inputWrapper: {
-    flex: 1,
-    marginEnd: 12,
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    backgroundColor: SURFACE_HIGH,
+    borderRadius: 16,
+    padding: 8,
+    gap: 8,
+    borderBottomWidth: 2,
+    borderBottomColor: PRIMARY,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.35,
+        shadowRadius: 16,
+      },
+      android: {
+        elevation: 8,
+      },
+    }),
   },
-  sendButton: {
-    width: SEND_BUTTON_SIZE,
-    height: SEND_BUTTON_SIZE,
+  sendBtn: {
+    width: SEND_SIZE,
+    height: SEND_SIZE,
     borderRadius: 12,
-    overflow: 'hidden',
-  },
-  sendButtonDisabled: {
-    opacity: 0.5,
-  },
-  sendGradient: {
-    flex: 1,
+    backgroundColor: PRIMARY,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendIcon: {
-    fontSize: 22,
+  sendBtnDisabled: {
+    opacity: 0.45,
+  },
+  sendIconFlip: {
+    transform: [{ scaleX: -1 }],
+  },
+  field: {
+    flex: 1,
+    minHeight: 44,
+    maxHeight: 120,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    fontSize: 14,
+    fontFamily: 'Inter',
     color: '#ffffff',
-    fontWeight: '700',
+    textAlign: 'right',
+  },
+  micBtn: {
+    width: MIC_SIZE,
+    height: MIC_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  micBtnDisabled: {
+    opacity: 0.45,
   },
 })

@@ -113,7 +113,7 @@ export const useBadgesStore = create<BadgesStore>()(
       checkAndUnlockBadges: () => {
         const approaches = useLogStore.getState().approaches
         const { streak } = useStatsStore.getState()
-        const unlockedBadges = [...get().unlockedBadges]
+        const missionsCompleted = get().missionsCompleted
 
         const badgesToCheck: Array<{
           id: Badge['id']
@@ -163,20 +163,31 @@ export const useBadgesStore = create<BadgesStore>()(
           },
           {
             id: 'savant',
-            condition: () => get().missionsCompleted >= 5,
+            condition: () => missionsCompleted >= 5,
           },
         ]
+
+        /**
+         * תגים שנשמרו ב־AsyncStorage מהעבר — אם הנתונים הנוכחיים (גישות/רצף וכו') כבר לא
+         * עומדים בתנאי, מסירים את התג. כך לא יופיע «השגת» ביחד עם 0/25 גישות.
+         */
+        let unlockedBadges = get().unlockedBadges.filter((ub) => {
+          const rule = badgesToCheck.find((c) => c.id === ub.id)
+          return rule ? rule.condition() : false
+        })
 
         badgesToCheck.forEach((badge) => {
           const isAlreadyUnlocked = unlockedBadges.some((b) => b.id === badge.id)
           if (!isAlreadyUnlocked && badge.condition()) {
             const badgeData = BADGES.find((b) => b.id === badge.id)
             if (badgeData) {
-              unlockedBadges.push({
-                ...badgeData,
-                unlockedAt: new Date().toISOString(),
-              })
-              // Trigger notification
+              unlockedBadges = [
+                ...unlockedBadges,
+                {
+                  ...badgeData,
+                  unlockedAt: new Date().toISOString(),
+                },
+              ]
               sendLocalNotification(`🏆 תג חדש!`, `${badgeData.title} — ${badgeData.description}`)
             }
           }

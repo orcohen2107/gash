@@ -1,5 +1,8 @@
 import React from 'react'
 import { View, Text, StyleSheet, Pressable } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useHorizontalGutter } from '@/lib/responsiveLayout'
+import NetInfo from '@react-native-community/netinfo'
 import { OfflineQueue } from '@/lib/offlineQueue'
 import { useLogStore } from '@/stores/useLogStore'
 import Toast from 'react-native-toast-message'
@@ -8,14 +11,34 @@ interface OfflineBannerProps {
   isOffline: boolean
 }
 
+function isNetOffline(state: {
+  isConnected: boolean | null
+  isInternetReachable: boolean | null
+}): boolean {
+  return state.isConnected === false || state.isInternetReachable === false
+}
+
 export function OfflineBanner({ isOffline }: OfflineBannerProps) {
+  const insets = useSafeAreaInsets()
+  const gutter = useHorizontalGutter()
   const [isProcessing, setIsProcessing] = React.useState(false)
 
-  const handleSyncNow = async () => {
+  /** בודק שוב את הרשת דרך המערכת; אם יש רשת — מריץ תור פעולות שנשמרו במכשיר (גישות וכו') */
+  const handleRetry = async () => {
     setIsProcessing(true)
     try {
-      const { approaches } = useLogStore.getState()
-      // Create a minimal client for queue processing
+      await NetInfo.refresh()
+      const latest = await NetInfo.fetch()
+
+      if (isNetOffline(latest)) {
+        Toast.show({
+          type: 'info',
+          text1: 'עדיין אין חיבור',
+          text2: 'כשהרשת תחזור הנתונים יישלחו אוטומטית',
+        })
+        return
+      }
+
       const client = {
         approaches: {
           create: (data: any) => useLogStore.getState().addApproach(data),
@@ -25,16 +48,29 @@ export function OfflineBanner({ isOffline }: OfflineBannerProps) {
       }
 
       const result = await OfflineQueue.processQueue(client)
-      Toast.show({
-        type: 'success',
-        text1: 'סינכרון הושלם',
-        text2: `${result.success} פעולות עודכנו`,
-      })
-    } catch (err) {
+
+      if (result.success > 0) {
+        Toast.show({
+          type: 'success',
+          text1: 'נשמר בשרת',
+          text2:
+            result.success === 1
+              ? 'פעולה אחת הושלמה'
+              : `${result.success} פעולות הושלמו`,
+        })
+      } else if (result.failed > 0) {
+        Toast.show({
+          type: 'error',
+          text1: 'חלק מהפעולות נכשלו',
+          text2: 'נסה שוב בעוד רגע',
+        })
+      }
+      /* תור ריק + יש רשת — בלי טוסט (לא מבלבל עם "החיבור חזר") */
+    } catch {
       Toast.show({
         type: 'error',
-        text1: 'שגיאה בסינכרון',
-        text2: 'בדוק את החיבור ונסה שוב',
+        text1: 'לא הצלחנו לסנכרן',
+        text2: 'נסה שוב בעוד רגע',
       })
     } finally {
       setIsProcessing(false)
@@ -44,23 +80,32 @@ export function OfflineBanner({ isOffline }: OfflineBannerProps) {
   if (!isOffline) return null
 
   return (
-    <View style={styles.banner}>
+    <View
+      style={[
+        styles.banner,
+        {
+          paddingHorizontal: gutter,
+          paddingBottom: Math.max(insets.bottom, 12),
+        },
+      ]}
+    >
       <View style={styles.content}>
         <Text style={styles.icon}>📡</Text>
         <View style={styles.textContainer}>
-          <Text style={styles.title}>אתה בחוץ מהרשת</Text>
+          <Text style={styles.title}>אין חיבור לאינטרנט</Text>
           <Text style={styles.description}>
-            הנתונים שלך יישמרו כשתחזור לרשת
+            מה שתשמור יישאר במכשיר ויישלח כשהחיבור יחזור. כפתור «נסה שוב» בודק שוב אם יש רשת
+            ומעלה פעולות שממתינות.
           </Text>
         </View>
       </View>
       <Pressable
-        onPress={handleSyncNow}
+        onPress={handleRetry}
         disabled={isProcessing}
         style={[styles.syncButton, isProcessing && styles.syncButtonDisabled]}
       >
         <Text style={styles.syncButtonText}>
-          {isProcessing ? 'מסנכרן...' : 'סנכרן עכשיו'}
+          {isProcessing ? 'בודק…' : 'נסה שוב'}
         </Text>
       </Pressable>
     </View>
@@ -69,20 +114,26 @@ export function OfflineBanner({ isOffline }: OfflineBannerProps) {
 
 const styles = StyleSheet.create({
   banner: {
+    width: '100%',
     backgroundColor: '#2d2d2d',
-    borderBottomWidth: 1,
-    borderBottomColor: '#444444',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#444444',
+    paddingTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 12,
   },
   content: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 10,
   },
   icon: {
     fontSize: 20,
-    marginEnd: 8,
+    marginEnd: 10,
+    marginTop: 2,
   },
   textContainer: {
     flex: 1,
@@ -91,25 +142,33 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
-    marginBottom: 2,
+    marginBottom: 4,
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   description: {
     fontSize: 12,
+    lineHeight: 17,
     color: '#adaaaa',
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   syncButton: {
     backgroundColor: '#81ecff',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    alignSelf: 'stretch',
+    alignItems: 'center',
   },
   syncButtonDisabled: {
-    opacity: 0.5,
+    opacity: 0.55,
   },
   syncButtonText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '600',
     color: '#000000',
+    textAlign: 'center',
+    writingDirection: 'rtl',
   },
 })

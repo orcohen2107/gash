@@ -1,43 +1,37 @@
 import { useEffect, useRef } from 'react'
 import { I18nManager, View } from 'react-native'
-import { Slot, Redirect, useRouter, usePathname } from 'expo-router'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
+import { Stack, useRouter, usePathname } from 'expo-router'
+import { StatusBar } from 'expo-status-bar'
 import * as Updates from 'expo-updates'
 import * as Notifications from 'expo-notifications'
-import * as Sentry from '@sentry/react-native'
 import { PostHogProvider } from 'posthog-react-native'
 import { useSettingsStore } from '@/stores/useSettingsStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { OfflineBanner } from '@/components/OfflineBanner'
-import { useNetworkStatus, isOffline } from '@/lib/useNetworkStatus'
+import { useNetworkStatus, useStableOfflineForBanner } from '@/lib/useNetworkStatus'
 import { registerForPushNotifications, setupNotificationResponseHandler } from '@/lib/notifications'
 import { analytics } from '@/lib/analytics'
 import { supabase } from '@/lib/supabase'
-
-// Initialize Sentry for error tracking
-if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
-  Sentry.init({
-    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-    enableInExpoDevelopment: true,
-    environment: process.env.NODE_ENV || 'production',
-    tracesSampleRate: 1.0,
-  })
-}
+import { fetchAndSyncUserProfile } from '@/lib/userProfileSync'
 
 function RootLayoutContent() {
   const router = useRouter()
   const pathname = usePathname()
-  const previousPathname = useRef<string>()
+  const previousPathname = useRef<string | undefined>(undefined)
   const rtlInitialized = useSettingsStore((s) => s.rtlInitialized)
   const setRtlInitialized = useSettingsStore((s) => s.setRtlInitialized)
 
   const session = useAuthStore((s) => s.session)
+  const sessionUserId = session?.user?.id
   const loading = useAuthStore((s) => s.loading)
   const setSession = useAuthStore((s) => s.setSession)
   const setLoading = useAuthStore((s) => s.setLoading)
 
   const networkState = useNetworkStatus()
-  const offline = isOffline(networkState)
+  const offline = useStableOfflineForBanner(networkState)
 
   // Track screen views with PostHog
   useEffect(() => {
@@ -73,19 +67,25 @@ function RootLayoutContent() {
     return () => subscription.unsubscribe()
   }, [setSession, setLoading])
 
+  useEffect(() => {
+    if (!sessionUserId) return
+    void fetchAndSyncUserProfile()
+  }, [sessionUserId])
+
   // Register for push notifications and initialize analytics when user is authenticated
   useEffect(() => {
     if (!session?.user?.id) return
 
     ;(async () => {
       try {
-        // Initialize analytics
         await analytics.initialize(session.user.id)
-
-        // Register for push notifications
+      } catch (err) {
+        console.error('Failed to initialize analytics:', err)
+      }
+      try {
         await registerForPushNotifications()
       } catch (err) {
-        console.error('Failed to initialize notifications/analytics:', err)
+        console.error('Failed to register for push notifications:', err)
       }
     })()
 
@@ -94,8 +94,9 @@ function RootLayoutContent() {
       const { data } = response.notification.request.content
 
       // Handle deep linking based on notification type
-      if (data?.screen) {
-        router.push(data.screen)
+      const screen = data && typeof data === 'object' && 'screen' in data ? data.screen : undefined
+      if (typeof screen === 'string' && screen.length > 0) {
+        router.push(screen)
       }
     })
 
@@ -104,19 +105,19 @@ function RootLayoutContent() {
     }
   }, [session, router])
 
-  if (loading) {
-    return null
-  }
-
-  if (!session) {
-    return <Redirect href="/auth" />
-  }
-
   return (
     <ErrorBoundary>
       <View style={{ flex: 1 }}>
+        <StatusBar style="light" />
+        <View style={{ flex: 1 }}>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: '#0e0e0e' },
+            }}
+          />
+        </View>
         <OfflineBanner isOffline={offline} />
-        <Slot />
       </View>
     </ErrorBoundary>
   )
@@ -124,10 +125,14 @@ function RootLayoutContent() {
 
 export default function RootLayout() {
   return (
-    <PostHogProvider apiKey={process.env.EXPO_PUBLIC_POSTHOG_API_KEY || ''} options={{
-      host: 'https://us.i.posthog.com',
-    }}>
-      <RootLayoutContent />
-    </PostHogProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <PostHogProvider apiKey={process.env.EXPO_PUBLIC_POSTHOG_API_KEY || ''} options={{
+          host: 'https://us.i.posthog.com',
+        }}>
+          <RootLayoutContent />
+        </PostHogProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   )
 }

@@ -34,7 +34,7 @@ export class ErrorBoundary extends React.Component<
     console.error('Error info:', errorInfo)
 
     this.setState({
-      errorInfo: errorInfo.componentStack,
+      errorInfo: errorInfo.componentStack ?? null,
     })
 
     // Send to Sentry (when configured)
