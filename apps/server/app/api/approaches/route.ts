@@ -3,9 +3,19 @@ import { verifyAuth } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
 import { handleApiError } from '@/lib/apiError'
 import { createRateLimitResponse } from '@/lib/rateLimit'
+import { getRequestLogContext, logger } from '@/lib/logger'
 import { CreateApproachSchema } from '@gash/schemas'
 import { runApproachFeedbackAgent } from '@/lib/agents/approachFeedback'
 import { buildUserContext } from '@/lib/agents/buildUserContext'
+
+const DEFAULT_PAGE_SIZE = 50
+const MAX_PAGE_SIZE = 100
+
+function parseLimit(value: string | null): number {
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed <= 0) return DEFAULT_PAGE_SIZE
+  return Math.min(parsed, MAX_PAGE_SIZE)
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,26 +33,35 @@ export async function GET(request: NextRequest) {
     const startDate = url.searchParams.get('startDate')
     const endDate = url.searchParams.get('endDate')
     const search = url.searchParams.get('search')
+    const cursor = url.searchParams.get('cursor')
+    const limit = parseLimit(url.searchParams.get('limit'))
 
     let query = supabase
       .from('approaches')
       .select('*')
       .eq('user_id', userId)
       .is('deleted_at', null)
-      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(limit + 1)
 
     if (approachType) query = query.eq('approach_type', approachType)
     if (startDate) query = query.gte('date', startDate)
     if (endDate) query = query.lte('date', endDate)
     if (search) query = query.ilike('location', `%${search}%`)
+    if (cursor) query = query.lt('created_at', cursor)
 
     const { data, error } = await query
 
     if (error) throw new Error(error.message)
 
-    return NextResponse.json({ approaches: data })
+    const rows = data ?? []
+    const hasMore = rows.length > limit
+    const approaches = hasMore ? rows.slice(0, limit) : rows
+    const nextCursor = hasMore ? approaches[approaches.length - 1]?.created_at ?? null : null
+
+    return NextResponse.json({ approaches, nextCursor, hasMore })
   } catch (error) {
-    return handleApiError(error)
+    return handleApiError(error, getRequestLogContext(request, '/api/approaches'))
   }
 }
 
@@ -74,6 +93,13 @@ export async function POST(request: NextRequest) {
 
     if (error) throw new Error(error.message)
 
+    logger.info('approach.created', {
+      ...getRequestLogContext(request, '/api/approaches'),
+      userId,
+      approachId: approach.id,
+      approachType: approach.approach_type,
+    })
+
     // Get AI feedback
     const userContext = await buildUserContext(userId, supabase)
     const feedbackResponse = await runApproachFeedbackAgent(
@@ -90,6 +116,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    return handleApiError(error)
+    return handleApiError(error, getRequestLogContext(request, '/api/approaches'))
   }
 }

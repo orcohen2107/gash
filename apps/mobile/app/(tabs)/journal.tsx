@@ -54,7 +54,7 @@ export default function JournalScreen() {
   const { width } = useWindowDimensions()
   const gutter = horizontalGutter(width)
   const tabBarHeight = useBottomTabBarHeight()
-  const { approaches, loadApproaches } = useLogStore()
+  const { approaches, loadApproaches, loadMoreApproaches, hasMore, loadingMore } = useLogStore()
   const [selectedApproach, setSelectedApproach] = useState<Approach | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
 
@@ -174,6 +174,30 @@ export default function JournalScreen() {
     [searchText, searchFocused, selectedType]
   )
 
+  const listFooter = useMemo(() => {
+    if (!hasMore) return null
+
+    return (
+      <Pressable
+        onPress={() => void loadMoreApproaches()}
+        disabled={loadingMore}
+        style={({ pressed }) => [
+          styles.loadMoreButton,
+          pressed && styles.loadMoreButtonPressed,
+          loadingMore && styles.loadMoreButtonDisabled,
+        ]}
+      >
+        <Text style={styles.loadMoreText}>
+          {loadingMore ? 'טוען עוד...' : 'טען עוד גישות'}
+        </Text>
+      </Pressable>
+    )
+  }, [hasMore, loadMoreApproaches, loadingMore])
+
+  const handleEndReached = useCallback(() => {
+    void loadMoreApproaches()
+  }, [loadMoreApproaches])
+
   return (
     <View style={styles.container}>
       <AppTopBar from="journal" />
@@ -195,6 +219,7 @@ export default function JournalScreen() {
           data={filteredApproaches}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={listHeader}
+          ListFooterComponent={listFooter}
           renderItem={({ item, index }) => (
             <JournalListItem
               approach={item}
@@ -204,6 +229,8 @@ export default function JournalScreen() {
           )}
           ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
           contentContainerStyle={listContentStyle}
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.4}
         />
       )}
 
@@ -305,6 +332,31 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingTop: 8,
+  },
+  loadMoreButton: {
+    alignSelf: 'center',
+    minHeight: 40,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginTop: 16,
+    borderRadius: 8,
+    backgroundColor: SURFACE_HIGH,
+    borderWidth: 1,
+    borderColor: OUTLINE_15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadMoreButtonPressed: {
+    opacity: 0.86,
+  },
+  loadMoreButtonDisabled: {
+    opacity: 0.55,
+  },
+  loadMoreText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: PRIMARY,
+    textAlign: 'center',
   },
   emptyWrap: {
     flex: 1,

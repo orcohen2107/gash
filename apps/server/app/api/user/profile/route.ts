@@ -3,6 +3,7 @@ import { verifyAuth } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { z } from 'zod'
 import { handleApiError } from '@/lib/apiError'
+import { getRequestLogContext, logger } from '@/lib/logger'
 
 const profileSchema = z.object({
   name: z.string().min(2).max(50),
@@ -31,6 +32,12 @@ export async function POST(request: NextRequest) {
 
     if (error) throw new Error(error.message)
 
+    logger.info('user.profile_saved', {
+      ...getRequestLogContext(request, '/api/user/profile'),
+      userId,
+      mode: exists ? 'update' : 'insert',
+    })
+
     return NextResponse.json({ ok: true })
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -46,7 +53,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       )
     }
-    return handleApiError(err)
+    return handleApiError(err, getRequestLogContext(request, '/api/user/profile'))
   }
 }
 
@@ -64,6 +71,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ profile: data ?? null })
   } catch (err) {
-    return handleApiError(err)
+    return handleApiError(err, getRequestLogContext(request, '/api/user/profile'))
   }
 }

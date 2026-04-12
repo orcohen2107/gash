@@ -3,6 +3,8 @@ import { runInsightsAgent } from '@/lib/agents/insights-agent'
 import { runMissionAgent } from '@/lib/agents/mission-agent'
 import type { MissionResponse } from '@/lib/agents/mission-agent'
 import { sendPushNotificationToUser } from '@/lib/pushNotifications'
+import { logger } from '@/lib/logger'
+import { loadCurrentStreak } from '@/lib/streak'
 import type {
   Approach,
   ApproachType,
@@ -139,7 +141,7 @@ async function loadInsightsPart(userId: string): Promise<InsightsResponse> {
         screen: '/(tabs)/dashboard',
       },
     }).catch((err) => {
-      console.error('Failed to send insights notification:', err)
+      logger.error('dashboard.insights_push_failed', { userId, error: err })
     })
   }
 
@@ -195,13 +197,21 @@ async function loadMissionPart(
     typeCounts[a.approach_type] = (typeCounts[a.approach_type] ?? 0) + 1
   })
 
-  const bestType = Object.keys(typeCounts).reduce((best, type) =>
-    typeCounts[type] > (typeCounts[best] || 0) ? type : best
-  ) as ApproachType
+  const typeKeys = Object.keys(typeCounts)
+  const fallbackType: ApproachType = 'direct'
+  const bestType =
+    typeKeys.length === 0
+      ? fallbackType
+      : (typeKeys.reduce((best, type) =>
+          typeCounts[type] > (typeCounts[best] || 0) ? type : best
+        ) as ApproachType)
 
-  const worstType = Object.keys(typeCounts).reduce((worst, type) =>
-    typeCounts[type] < (typeCounts[worst] ?? Infinity) ? type : worst
-  ) as ApproachType
+  const worstType =
+    typeKeys.length === 0
+      ? fallbackType
+      : (typeKeys.reduce((worst, type) =>
+          typeCounts[type] < (typeCounts[worst] ?? Infinity) ? type : worst
+        ) as ApproachType)
 
   const mission = await runMissionAgent({
     totalApproaches,
@@ -239,7 +249,7 @@ export async function buildDashboardPayload(userId: string): Promise<DashboardRe
   const approaches = (rows ?? []) as Approach[]
   const kpis = computeKpis(approaches)
 
-  const [insights, mission] = await Promise.all([
+  const [insights, mission, streak] = await Promise.all([
     loadInsightsPart(userId),
     loadMissionPart(
       userId,
@@ -249,6 +259,7 @@ export async function buildDashboardPayload(userId: string): Promise<DashboardRe
         chemistry_score: a.chemistry_score,
       }))
     ),
+    loadCurrentStreak(userId),
   ])
 
   return {
@@ -256,5 +267,6 @@ export async function buildDashboardPayload(userId: string): Promise<DashboardRe
     kpis,
     insights,
     mission,
+    streak,
   }
 }

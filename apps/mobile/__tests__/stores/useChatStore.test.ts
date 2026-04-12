@@ -2,6 +2,7 @@ jest.mock('@gash/api-client', () => ({
   __mockClient: {
     coach: {
       history: jest.fn(),
+      clearHistory: jest.fn(),
       send: jest.fn(),
     },
   },
@@ -18,7 +19,13 @@ describe('useChatStore', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    useChatStore.setState({ messages: [], loading: false })
+    useChatStore.setState({
+      messages: [],
+      loading: false,
+      loadingMore: false,
+      hasMoreHistory: false,
+      historyCursor: null,
+    })
     setTimeoutSpy = jest
       .spyOn(global, 'setTimeout')
       .mockImplementation((callback: (...args: unknown[]) => void) => {
@@ -49,13 +56,81 @@ describe('useChatStore', () => {
         created_at: '2026-04-12T08:00:00.000Z',
       },
     ]
-    mockClient.coach.history.mockResolvedValueOnce({ messages })
+    mockClient.coach.history.mockResolvedValueOnce({
+      messages,
+      nextCursor: '2026-04-12T08:00:00.000Z',
+      hasMore: true,
+    })
 
     await useChatStore.getState().loadHistory()
 
-    expect(mockClient.coach.history).toHaveBeenCalledTimes(1)
+    expect(mockClient.coach.history).toHaveBeenCalledWith({ limit: 50 })
     expect(useChatStore.getState().messages).toEqual(messages)
+    expect(useChatStore.getState().historyCursor).toBe('2026-04-12T08:00:00.000Z')
+    expect(useChatStore.getState().hasMoreHistory).toBe(true)
     expect(useChatStore.getState().loading).toBe(false)
+  })
+
+  it('prepends older history without duplicating existing messages', async () => {
+    const existing = {
+      id: 'msg-2',
+      user_id: 'user-1',
+      role: 'assistant' as const,
+      content: 'חדש',
+      created_at: '2026-04-12T09:00:00.000Z',
+    }
+    const older = {
+      id: 'msg-1',
+      user_id: 'user-1',
+      role: 'user' as const,
+      content: 'ישן',
+      created_at: '2026-04-12T08:00:00.000Z',
+    }
+    useChatStore.setState({
+      messages: [existing],
+      historyCursor: existing.created_at,
+      hasMoreHistory: true,
+    })
+    mockClient.coach.history.mockResolvedValueOnce({
+      messages: [older, existing],
+      nextCursor: older.created_at,
+      hasMore: false,
+    })
+
+    await useChatStore.getState().loadOlderHistory()
+
+    expect(mockClient.coach.history).toHaveBeenCalledWith({
+      before: existing.created_at,
+      limit: 50,
+    })
+    expect(useChatStore.getState().messages).toEqual([older, existing])
+    expect(useChatStore.getState().hasMoreHistory).toBe(false)
+    expect(useChatStore.getState().loadingMore).toBe(false)
+  })
+
+  it('clears persisted chat history through the API client', async () => {
+    useChatStore.setState({
+      messages: [
+        {
+          id: 'msg-1',
+          user_id: 'user-1',
+          role: 'assistant',
+          content: 'שלום',
+          created_at: '2026-04-12T08:00:00.000Z',
+        },
+      ],
+      historyCursor: '2026-04-12T08:00:00.000Z',
+      hasMoreHistory: true,
+    })
+    mockClient.coach.clearHistory.mockResolvedValueOnce(undefined)
+
+    await useChatStore.getState().clearHistory()
+
+    expect(mockClient.coach.clearHistory).toHaveBeenCalledTimes(1)
+    expect(useChatStore.getState().messages).toEqual([])
+    expect(useChatStore.getState().historyCursor).toBeNull()
+    expect(useChatStore.getState().hasMoreHistory).toBe(false)
+    expect(Toast.show).toHaveBeenCalledWith({ type: 'success', text1: 'ההיסטוריה נמחקה' })
   })
 
   it('shows an error and clears loading when history loading fails', async () => {

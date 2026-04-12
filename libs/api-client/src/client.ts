@@ -136,10 +136,11 @@ export interface ApiClient {
     opener: (req: SituationOpenerRequest) => Promise<SituationOpenerResponse>
     feedback: (req: ApproachFeedbackRequest) => Promise<ApproachFeedbackResponse>
     debrief: (req: DebriefRequest) => Promise<DebriefResponse>
-    history: () => Promise<{ messages: ChatMessage[] }>
+    history: (options?: { before?: string; limit?: number }) => Promise<{ messages: ChatMessage[]; nextCursor?: string | null; hasMore?: boolean }>
+    clearHistory: () => Promise<void>
   }
   approaches: {
-    list: (filters?: { approach_type?: string; startDate?: string; endDate?: string; search?: string }) => Promise<{ approaches: Approach[] }>
+    list: (filters?: { approach_type?: string; startDate?: string; endDate?: string; search?: string; cursor?: string; limit?: number }) => Promise<{ approaches: Approach[]; nextCursor?: string | null; hasMore?: boolean }>
     create: (approach: Omit<Approach, 'id' | 'user_id' | 'created_at'>) => Promise<{ id: string; feedback: string; created_at: string }>
     update: (id: string, updates: Partial<Approach>) => Promise<Approach>
     delete: (id: string) => Promise<void>
@@ -168,7 +169,14 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
       opener: (req) => post(config, '/api/coach/opener', req),
       feedback: (req) => post(config, '/api/coach', req),
       debrief: (req) => post(config, '/api/coach', req),
-      history: () => get(config, '/api/coach/history'),
+      history: (options) => {
+        const params = new URLSearchParams()
+        if (options?.before) params.append('before', options.before)
+        if (options?.limit) params.append('limit', String(options.limit))
+        const query = params.toString()
+        return get(config, `/api/coach/history${query ? `?${query}` : ''}`)
+      },
+      clearHistory: () => del(config, '/api/coach/history'),
     },
     approaches: {
       list: (filters) => {
@@ -177,6 +185,8 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         if (filters?.startDate) params.append('startDate', filters.startDate)
         if (filters?.endDate) params.append('endDate', filters.endDate)
         if (filters?.search) params.append('search', filters.search)
+        if (filters?.cursor) params.append('cursor', filters.cursor)
+        if (filters?.limit) params.append('limit', String(filters.limit))
         const query = params.toString()
         return get(config, `/api/approaches${query ? `?${query}` : ''}`)
       },

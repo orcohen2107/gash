@@ -45,10 +45,14 @@ async function withRetry<T>(
 interface LogStore {
   approaches: Approach[]
   loading: boolean
+  loadingMore: boolean
+  hasMore: boolean
+  nextCursor: string | null
   /** מילוי טופס תיעוד לעריכה — לא נשמר ב-persist */
   pendingEditApproach: Approach | null
   setPendingEditApproach: (approach: Approach | null) => void
   loadApproaches: () => Promise<void>
+  loadMoreApproaches: () => Promise<void>
   addApproach: (approach: Omit<Approach, 'id' | 'user_id' | 'created_at'>) => Promise<void>
   updateApproach: (id: string, updates: Partial<Approach>) => Promise<void>
   deleteApproach: (id: string) => Promise<void>
@@ -61,17 +65,51 @@ export const useLogStore = create<LogStore>()(
     (set, get) => ({
       approaches: [],
       loading: false,
+      loadingMore: false,
+      hasMore: false,
+      nextCursor: null,
       pendingEditApproach: null,
       setPendingEditApproach: (approach) => set({ pendingEditApproach: approach }),
 
       loadApproaches: async () => {
         set({ loading: true })
         try {
-          const { approaches } = await client.approaches.list()
-          set({ approaches, loading: false })
+          const { approaches, nextCursor, hasMore } = await client.approaches.list({ limit: 50 })
+          set({
+            approaches,
+            loading: false,
+            nextCursor: nextCursor ?? null,
+            hasMore: hasMore ?? false,
+          })
         } catch (err) {
           console.error('Failed to load approaches:', err)
           set({ loading: false })
+        }
+      },
+
+      loadMoreApproaches: async () => {
+        const { hasMore, nextCursor, loadingMore } = get()
+        if (!hasMore || !nextCursor || loadingMore) return
+
+        set({ loadingMore: true })
+        try {
+          const result = await client.approaches.list({ cursor: nextCursor, limit: 50 })
+          set((state) => {
+            const existingIds = new Set(state.approaches.map((approach) => approach.id))
+            const nextApproaches = result.approaches.filter(
+              (approach) => !existingIds.has(approach.id)
+            )
+
+            return {
+              approaches: [...state.approaches, ...nextApproaches],
+              loadingMore: false,
+              nextCursor: result.nextCursor ?? null,
+              hasMore: result.hasMore ?? false,
+            }
+          })
+        } catch (err) {
+          console.error('Failed to load more approaches:', err)
+          set({ loadingMore: false })
         }
       },
 

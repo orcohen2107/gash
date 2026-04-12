@@ -1,6 +1,7 @@
 import { CLAUDE_MODEL_HAIKU } from '@gash/constants'
 import { callClaude } from '../claude'
 import type { ApproachType } from '@gash/types'
+import { logger } from '@/lib/logger'
 
 interface UserContext {
   totalApproaches: number
@@ -47,7 +48,11 @@ export async function runMissionAgent(userContext: UserContext): Promise<Mission
         (response.target_approach_type as ApproachType) || 'direct',
     }
   } catch (err) {
-    console.error('Mission agent error:', err)
+    logger.error('agent.mission_failed', {
+      totalApproaches: userContext.totalApproaches,
+      successRate,
+      error: err,
+    })
     // Return default mission
     return {
       title: 'שדר גישה אחת',

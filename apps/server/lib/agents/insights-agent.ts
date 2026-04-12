@@ -1,5 +1,6 @@
 import { callClaude } from '@/lib/claude'
 import { buildUserContext } from '@/lib/build-user-context'
+import { logger } from '@/lib/logger'
 
 export interface InsightResponse {
   insights: string[]
@@ -51,7 +52,7 @@ export async function runInsightsAgent(userId: string): Promise<InsightResponse>
     const response: InsightResponse = JSON.parse(raw)
     return response
   } catch (err) {
-    console.error('Failed to generate insights:', err)
+    logger.error('agent.insights_failed', { userId, error: err })
     return {
       insights: [
         'המשך לתעד גישות כדי לקבל תובנות מעמיקות',

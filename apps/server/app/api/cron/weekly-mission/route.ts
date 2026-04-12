@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { runMissionAgent } from '@/lib/agents/mission-agent'
+import { getRequestLogContext, logger } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
   // Protect with CRON_SECRET header
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
     const userIds = [...new Set(approachesData?.map((r) => r.user_id) ?? [])]
 
     // Get this week's start date (Sunday)
-    const weekStart = new Date()
+    const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay())
     const weekStartStr = weekStart.toISOString().split('T')[0]
 
@@ -72,13 +73,20 @@ export async function GET(request: NextRequest) {
         typeCounts[a.approach_type] = (typeCounts[a.approach_type] ?? 0) + 1
       })
 
-      const bestType = Object.keys(typeCounts).reduce((best, type) =>
-        typeCounts[type] > (typeCounts[best] || 0) ? type : best
-      )
+      const typeKeys = Object.keys(typeCounts)
+      const bestType =
+        typeKeys.length === 0
+          ? 'direct'
+          : typeKeys.reduce((best, type) =>
+              typeCounts[type] > (typeCounts[best] || 0) ? type : best
+            )
 
-      const worstType = Object.keys(typeCounts).reduce((worst, type) =>
-        typeCounts[type] < (typeCounts[worst] ?? Infinity) ? type : worst
-      )
+      const worstType =
+        typeKeys.length === 0
+          ? 'direct'
+          : typeKeys.reduce((worst, type) =>
+              typeCounts[type] < (typeCounts[worst] ?? Infinity) ? type : worst
+            )
 
       // Generate mission via Claude
       const mission = await runMissionAgent({
@@ -105,9 +113,18 @@ export async function GET(request: NextRequest) {
       processed++
     }
 
+    logger.info('cron.weekly_mission_completed', {
+      ...getRequestLogContext(request, '/api/cron/weekly-mission'),
+      processed,
+      total: userIds.length,
+    })
+
     return NextResponse.json({ processed, total: userIds.length })
   } catch (err) {
-    console.error('Cron job error:', err)
+    logger.error('cron.weekly_mission_failed', {
+      ...getRequestLogContext(request, '/api/cron/weekly-mission'),
+      error: err,
+    })
     return NextResponse.json({ error: 'Cron failed', details: String(err) }, { status: 500 })
   }
 }

@@ -1,5 +1,5 @@
-import React from 'react'
-import { View, Pressable, Text, StyleSheet, ScrollView } from 'react-native'
+import React, { useCallback, useRef } from 'react'
+import { Pressable, Text, StyleSheet, ScrollView } from 'react-native'
 import type { Tip } from '@gash/constants'
 import { useHorizontalGutter } from '@/lib/responsiveLayout'
 
@@ -15,17 +15,26 @@ const FILTERS: Array<{ label: string; value: TipsFilterValue }> = [
   { label: 'הכל', value: 'all' },
   { label: 'גישה', value: 'זיהוי' },
   { label: 'שיחה', value: 'אישור' },
+  { label: 'פלירטוט', value: 'פלירטוט' },
   { label: 'ביטחון', value: 'ביטחון' },
 ]
 
 export default function CategoryFilter({ selectedCategory, onSelectCategory }: CategoryFilterProps) {
   const gutter = useHorizontalGutter()
+  const scrollRef = useRef<ScrollView>(null)
+  const scrollToStart = useCallback(() => {
+    scrollRef.current?.scrollToEnd({ animated: false })
+  }, [])
+
   return (
     <ScrollView
+      ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       style={styles.scrollRtl}
       contentContainerStyle={[styles.container, { paddingHorizontal: gutter }]}
+      onContentSizeChange={scrollToStart}
+      onLayout={scrollToStart}
       scrollEventThrottle={16}
     >
       {FILTERS.map((item) => (

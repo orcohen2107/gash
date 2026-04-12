@@ -28,6 +28,10 @@ export interface Mission {
   target_approach_type: ApproachType
 }
 
+function isIntroMission(mission: Mission): boolean {
+  return mission.title === 'ברוכים הבאים'
+}
+
 interface BadgesStore {
   unlockedBadges: UnlockedBadge[]
   mission: Mission | null
@@ -56,10 +60,15 @@ export const useBadgesStore = create<BadgesStore>()(
         try {
           // Check cache first (stale-while-revalidate pattern)
           const cachedWithMeta = await cache.getWithMetadata<Mission>('mission')
+          const hasApproaches = useLogStore.getState().approaches.length > 0
 
-          if (cachedWithMeta.data && !cachedWithMeta.isExpired) {
+          if (
+            cachedWithMeta.data &&
+            !cachedWithMeta.isExpired &&
+            (!isIntroMission(cachedWithMeta.data) || !hasApproaches)
+          ) {
             // Return fresh cached data
-            set({ isLoadingMission: false })
+            set({ mission: cachedWithMeta.data, isLoadingMission: false })
             return cachedWithMeta.data
           }
 
@@ -69,14 +78,20 @@ export const useBadgesStore = create<BadgesStore>()(
             headers: await getAuthHeaders(),
             body: JSON.stringify({}),
           })
+          if (!response.ok) {
+            throw new Error(`Failed to fetch mission: ${response.status}`)
+          }
           const mission = (await response.json()) as Mission
           set({ mission, isLoadingMission: false })
 
-          // Cache for 24 hours (mission updates daily)
-          await cache.set('mission', mission, CACHE_PRESETS.VERY_LONG)
+          if (isIntroMission(mission)) {
+            await cache.delete('mission')
+          } else {
+            // Cache for 24 hours (mission updates daily)
+            await cache.set('mission', mission, CACHE_PRESETS.VERY_LONG)
+            sendLocalNotification(`📋 משימה שבועית חדשה`, `${mission.title}`)
+          }
 
-          // Trigger notification for new mission (only on fresh fetch)
-          sendLocalNotification(`📋 משימה שבועית חדשה`, `${mission.title}`)
           return mission
         } catch (err) {
           console.error('Failed to fetch mission:', err)
@@ -84,11 +99,16 @@ export const useBadgesStore = create<BadgesStore>()(
 
           // Try to return stale cache if available
           const cachedWithMeta = await cache.getWithMetadata<Mission>('mission')
-          if (cachedWithMeta.data) {
+          if (
+            cachedWithMeta.data &&
+            (!isIntroMission(cachedWithMeta.data) || useLogStore.getState().approaches.length === 0)
+          ) {
             console.warn('Returning stale cached mission due to fetch error')
+            set({ mission: cachedWithMeta.data })
             return cachedWithMeta.data
           }
 
+          set({ mission: null })
           return null
         }
       },
@@ -100,10 +120,14 @@ export const useBadgesStore = create<BadgesStore>()(
             headers: await getAuthHeaders(),
             body: JSON.stringify({ action: 'complete' }),
           })
+          if (!response.ok) {
+            throw new Error(`Failed to complete mission: ${response.status}`)
+          }
           const data = (await response.json()) as { success: boolean }
           if (data.success) {
             // Increment local missionsCompleted counter
             set({ missionsCompleted: get().missionsCompleted + 1 })
+            await cache.delete('mission')
           }
         } catch (err) {
           console.error('Failed to complete mission:', err)
@@ -119,6 +143,10 @@ export const useBadgesStore = create<BadgesStore>()(
           id: Badge['id']
           condition: () => boolean
         }> = [
+          {
+            id: 'first-step',
+            condition: () => approaches.length >= 1,
+          },
           {
             id: 'starter',
             condition: () => approaches.length >= 5,
@@ -136,6 +164,10 @@ export const useBadgesStore = create<BadgesStore>()(
             condition: () => approaches.length >= 50,
           },
           {
+            id: 'three-day-streak',
+            condition: () => streak >= 3,
+          },
+          {
             id: 'seven-day-streak',
             condition: () => streak >= 7,
           },
@@ -148,6 +180,24 @@ export const useBadgesStore = create<BadgesStore>()(
                 (a) => a.response === 'positive' || a.response === 'neutral'
               ).length
               return (successCount / directApproaches.length) * 100 > 60
+            },
+          },
+          {
+            id: 'situational-player',
+            condition: () => {
+              return approaches.filter((a) => a.approach_type === 'situational').length >= 5
+            },
+          },
+          {
+            id: 'online-active',
+            condition: () => {
+              return approaches.filter((a) => a.approach_type === 'online').length >= 5
+            },
+          },
+          {
+            id: 'high-spark',
+            condition: () => {
+              return approaches.filter((a) => (a.chemistry_score ?? 0) >= 8).length >= 5
             },
           },
           {

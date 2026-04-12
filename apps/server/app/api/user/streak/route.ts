@@ -1,13 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { verifyAuth } from '@/lib/auth'
-import { supabaseAdmin } from '@/lib/supabase'
 import { sendPushNotificationToUser } from '@/lib/pushNotifications'
 import { handleApiError } from '@/lib/apiError'
+import { getRequestLogContext, logger } from '@/lib/logger'
+import { incrementUserStreak, loadCurrentStreak } from '@/lib/streak'
 
 const StreakRequestSchema = z.object({
   action: z.enum(['increment']),
 })
+
+export async function GET(request: NextRequest) {
+  try {
+    const auth = await verifyAuth(request)
+    if (!auth) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const streak = await loadCurrentStreak(auth.userId)
+    return NextResponse.json({ streak })
+  } catch (error) {
+    return handleApiError(error, getRequestLogContext(request, '/api/user/streak'))
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,63 +38,11 @@ export async function POST(request: NextRequest) {
     const { action } = validated
 
     if (action === 'increment') {
-      // Get user's last approach date
-      const { data: lastApproach } = await supabaseAdmin
-        .from('approaches')
-        .select('date')
-        .eq('user_id', userId)
-        .order('date', { ascending: false })
-        .limit(1)
-
-      // Get current user streak
-      const { data: userInsights } = await supabaseAdmin
-        .from('user_insights')
-        .select('streak, last_approach_date')
-        .eq('user_id', userId)
-        .single()
-
-      const today = new Date().toISOString().split('T')[0]
-      const lastApproachDate = userInsights?.last_approach_date
-      const currentStreak = userInsights?.streak || 0
-
-      let newStreak = currentStreak
-
-      // Check if already logged today
-      if (lastApproachDate === today) {
-        // Already logged today, don't increment
-        newStreak = currentStreak
-      } else if (lastApproachDate) {
-        // Check for gap
-        const lastDate = new Date(lastApproachDate)
-        const todayDate = new Date(today)
-        const daysDiff = Math.floor(
-          (todayDate.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24)
-        )
-
-        if (daysDiff === 1) {
-          // Consecutive day, increment
-          newStreak = currentStreak + 1
-        } else if (daysDiff > 1) {
-          // Gap in streak, reset to 1
-          newStreak = 1
-        }
-      } else {
-        // First approach ever
-        newStreak = 1
-      }
-
-      // Update user_insights with new streak and date
-      await supabaseAdmin
-        .from('user_insights')
-        .upsert({
-          user_id: userId,
-          streak: newStreak,
-          last_approach_date: today,
-        })
+      const { previousStreak, streak } = await incrementUserStreak(userId)
 
       // Send push notification on milestone streaks (7, 14, 21, etc.)
-      if (newStreak > currentStreak && newStreak > 0 && newStreak % 7 === 0) {
-        const milestoneMessage = `🔥 רצף שבועי! ${newStreak} ימים רצופים — כל הכבוד!`
+      if (streak > previousStreak && streak > 0 && streak % 7 === 0) {
+        const milestoneMessage = `🔥 רצף שבועי! ${streak} ימים רצופים — כל הכבוד!`
         await sendPushNotificationToUser({
           userId,
           title: 'הישג חדש!',
@@ -87,22 +50,34 @@ export async function POST(request: NextRequest) {
           notificationType: 'streak_milestone',
           data: {
             screen: '/(tabs)/dashboard',
-            streak: newStreak,
+            streak,
           },
         }).catch((err) => {
-          console.error('Failed to send streak milestone notification:', err)
+          logger.error('streak.milestone_push_failed', {
+            ...getRequestLogContext(request, '/api/user/streak'),
+            userId,
+            streak,
+            error: err,
+          })
           // Non-blocking — don't fail the API if push notification fails
         })
       }
 
+      logger.info('streak.updated', {
+        ...getRequestLogContext(request, '/api/user/streak'),
+        userId,
+        previousStreak,
+        newStreak: streak,
+      })
+
       return NextResponse.json({
-        streak: newStreak,
-        message: newStreak > currentStreak ? '+1 🔥' : 'משימה הושלמה',
+        streak,
+        message: streak > previousStreak ? '+1 🔥' : 'הרצף עודכן',
       })
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   } catch (error) {
-    return handleApiError(error)
+    return handleApiError(error, getRequestLogContext(request, '/api/user/streak'))
   }
 }

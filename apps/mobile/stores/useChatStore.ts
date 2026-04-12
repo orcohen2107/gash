@@ -16,22 +16,80 @@ const RETRY_DELAY = 1000 // ms
 interface ChatStore {
   messages: ChatMessage[]
   loading: boolean
+  loadingMore: boolean
+  hasMoreHistory: boolean
+  historyCursor: string | null
   loadHistory: () => Promise<void>
+  loadOlderHistory: () => Promise<void>
+  clearHistory: () => Promise<void>
   sendMessage: (text: string) => Promise<void>
 }
 
 export const useChatStore = create<ChatStore>()((set, get) => ({
   messages: [],
   loading: false,
+  loadingMore: false,
+  hasMoreHistory: false,
+  historyCursor: null,
 
   loadHistory: async () => {
     set({ loading: true })
     try {
-      const { messages } = await client.coach.history()
-      set({ messages, loading: false })
+      const { messages, nextCursor, hasMore } = await client.coach.history({ limit: 50 })
+      set({
+        messages,
+        loading: false,
+        historyCursor: nextCursor ?? null,
+        hasMoreHistory: hasMore ?? false,
+      })
     } catch {
       set({ loading: false })
       Toast.show({ type: 'error', text1: 'בעיה בטעינה', text2: 'לא הצלחנו לטעון את ההיסטוריה' })
+    }
+  },
+
+  loadOlderHistory: async () => {
+    const { historyCursor, hasMoreHistory, loadingMore } = get()
+    if (!historyCursor || !hasMoreHistory || loadingMore) return
+
+    set({ loadingMore: true })
+    try {
+      const { messages, nextCursor, hasMore } = await client.coach.history({
+        before: historyCursor,
+        limit: 50,
+      })
+      set((state) => {
+        const existingIds = new Set(state.messages.map((message) => message.id))
+        const olderMessages = messages.filter((message) => !existingIds.has(message.id))
+
+        return {
+          messages: [...olderMessages, ...state.messages],
+          loadingMore: false,
+          historyCursor: nextCursor ?? null,
+          hasMoreHistory: hasMore ?? false,
+        }
+      })
+    } catch {
+      set({ loadingMore: false })
+      Toast.show({ type: 'error', text1: 'בעיה בטעינה', text2: 'לא הצלחנו לטעון הודעות ישנות' })
+    }
+  },
+
+  clearHistory: async () => {
+    set({ loading: true })
+    try {
+      await client.coach.clearHistory()
+      set({
+        messages: [],
+        loading: false,
+        loadingMore: false,
+        historyCursor: null,
+        hasMoreHistory: false,
+      })
+      Toast.show({ type: 'success', text1: 'ההיסטוריה נמחקה' })
+    } catch {
+      set({ loading: false })
+      Toast.show({ type: 'error', text1: 'בעיה במחיקה', text2: 'לא הצלחנו למחוק את ההיסטוריה' })
     }
   },
 

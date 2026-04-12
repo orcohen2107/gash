@@ -10,9 +10,12 @@ import { useHorizontalGutter } from '@/lib/responsiveLayout'
 import { getBadgeLiveStatusLine } from '@/lib/badgeProgress'
 import { BadgeDetailModal } from '@/components/badges/BadgeDetailModal'
 
+const COLLAPSED_BADGES_LIMIT = 4
+
 export default function BadgeGallery() {
   const gutter = useHorizontalGutter()
   const [selected, setSelected] = useState<Badge | null>(null)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const unlockedBadges = useBadgesStore((state) => state.unlockedBadges)
   const checkAndUnlockBadges = useBadgesStore((state) => state.checkAndUnlockBadges)
@@ -32,6 +35,9 @@ export default function BadgeGallery() {
     (id: Badge['id']) => getBadgeLiveStatusLine(id, approaches, streak, missionsCompleted),
     [approaches, streak, missionsCompleted]
   )
+
+  const visibleBadges = isExpanded ? BADGES : BADGES.slice(0, COLLAPSED_BADGES_LIMIT)
+  const hasHiddenBadges = BADGES.length > COLLAPSED_BADGES_LIMIT
 
   const renderBadge = ({ item }: { item: (typeof BADGES)[0] }) => {
     const isUnlocked = unlockedIds.has(item.id)
@@ -75,7 +81,7 @@ export default function BadgeGallery() {
         <Text style={styles.subtitle}>לפי מה שמתועד אצלך. לחיצה על תג לפרטים.</Text>
       </View>
       <FlatList
-        data={BADGES}
+        data={visibleBadges}
         keyExtractor={(item) => item.id}
         numColumns={2}
         renderItem={renderBadge}
@@ -83,6 +89,20 @@ export default function BadgeGallery() {
         style={styles.badgeListRtl}
         columnWrapperStyle={styles.columnWrapper}
       />
+
+      {hasHiddenBadges ? (
+        <Pressable
+          onPress={() => setIsExpanded((value) => !value)}
+          style={({ pressed }) => [
+            styles.toggleButton,
+            pressed && { opacity: 0.88 },
+          ]}
+        >
+          <Text style={styles.toggleText}>
+            {isExpanded ? 'הצג פחות' : 'הצג את כל ההישגים'}
+          </Text>
+        </Pressable>
+      ) : null}
 
       <BadgeDetailModal
         visible={selected != null}
@@ -194,5 +214,19 @@ const styles = StyleSheet.create({
     color: '#888888',
     textAlign: 'center',
     writingDirection: 'rtl',
+  },
+  toggleButton: {
+    marginTop: 2,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#20201f',
+    borderWidth: 1,
+    borderColor: 'rgba(129, 236, 255, 0.28)',
+    alignItems: 'center',
+  },
+  toggleText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#81ecff',
   },
 })

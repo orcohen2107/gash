@@ -10,6 +10,7 @@ export async function runInsightsAgent(
     .from('approaches')
     .select('*')
     .eq('user_id', userId)
+    .is('deleted_at', null)
     .order('date', { ascending: false })
     .limit(30)
 

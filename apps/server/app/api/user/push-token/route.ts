@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { verifyAuth } from '@/lib/auth'
 import { handleApiError } from '@/lib/apiError'
+import { getRequestLogContext, logger } from '@/lib/logger'
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,8 +26,13 @@ export async function POST(request: NextRequest) {
 
     if (error) throw error
 
+    logger.info('user.push_token_saved', {
+      ...getRequestLogContext(request, '/api/user/push-token'),
+      userId,
+    })
+
     return NextResponse.json({ success: true, message: 'Push token stored' })
   } catch (error) {
-    return handleApiError(error)
+    return handleApiError(error, getRequestLogContext(request, '/api/user/push-token'))
   }
 }

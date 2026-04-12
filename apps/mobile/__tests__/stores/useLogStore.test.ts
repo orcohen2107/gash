@@ -54,7 +54,14 @@ describe('useLogStore', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockIncrementStreak.mockResolvedValue({ streak: 1, message: 'רצף עודכן' })
-    useLogStore.setState({ approaches: [], loading: false, pendingEditApproach: null })
+    useLogStore.setState({
+      approaches: [],
+      loading: false,
+      loadingMore: false,
+      hasMore: false,
+      nextCursor: null,
+      pendingEditApproach: null,
+    })
     consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined)
     setTimeoutSpy = jest
       .spyOn(global, 'setTimeout')
@@ -79,13 +86,50 @@ describe('useLogStore', () => {
 
   it('loads approaches from the API client', async () => {
     const approaches = [savedApproach()]
-    mockClient.approaches.list.mockResolvedValueOnce({ approaches })
+    mockClient.approaches.list.mockResolvedValueOnce({
+      approaches,
+      nextCursor: '2026-04-12T08:00:00.000Z',
+      hasMore: true,
+    })
 
     await useLogStore.getState().loadApproaches()
 
-    expect(mockClient.approaches.list).toHaveBeenCalledTimes(1)
+    expect(mockClient.approaches.list).toHaveBeenCalledWith({ limit: 50 })
     expect(useLogStore.getState().approaches).toEqual(approaches)
+    expect(useLogStore.getState().nextCursor).toBe('2026-04-12T08:00:00.000Z')
+    expect(useLogStore.getState().hasMore).toBe(true)
     expect(useLogStore.getState().loading).toBe(false)
+  })
+
+  it('loads the next approaches page and skips duplicates', async () => {
+    const first = savedApproach({
+      id: 'approach-1',
+      created_at: '2026-04-12T09:00:00.000Z',
+    })
+    const second = savedApproach({
+      id: 'approach-2',
+      created_at: '2026-04-12T08:00:00.000Z',
+    })
+    useLogStore.setState({
+      approaches: [first],
+      nextCursor: first.created_at,
+      hasMore: true,
+    })
+    mockClient.approaches.list.mockResolvedValueOnce({
+      approaches: [first, second],
+      nextCursor: second.created_at,
+      hasMore: false,
+    })
+
+    await useLogStore.getState().loadMoreApproaches()
+
+    expect(mockClient.approaches.list).toHaveBeenCalledWith({
+      cursor: first.created_at,
+      limit: 50,
+    })
+    expect(useLogStore.getState().approaches).toEqual([first, second])
+    expect(useLogStore.getState().hasMore).toBe(false)
+    expect(useLogStore.getState().loadingMore).toBe(false)
   })
 
   it('clears loading and keeps existing approaches when loading fails', async () => {

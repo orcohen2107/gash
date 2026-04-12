@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  Alert,
   FlatList,
   Image,
   KeyboardAvoidingView,
@@ -37,9 +38,14 @@ export default function CoachScreen() {
   const userProfile = useAuthStore((s) => s.userProfile)
   const messages = useChatStore((s) => s.messages)
   const loading = useChatStore((s) => s.loading)
+  const loadingMore = useChatStore((s) => s.loadingMore)
+  const hasMoreHistory = useChatStore((s) => s.hasMoreHistory)
   const sendMessage = useChatStore((s) => s.sendMessage)
   const loadHistory = useChatStore((s) => s.loadHistory)
+  const loadOlderHistory = useChatStore((s) => s.loadOlderHistory)
+  const clearHistory = useChatStore((s) => s.clearHistory)
   const flatListRef = useRef<FlatList<ChatMessage>>(null)
+  const skipNextAutoScrollRef = useRef(false)
   const [inputValue, setInputValue] = useState('')
 
   useFocusEffect(
@@ -65,6 +71,30 @@ export default function CoachScreen() {
     Toast.show({ type: 'success', text1: 'הועתק!', visibilityTime: 2000 })
   }, [])
 
+  const handleLoadOlder = useCallback(async () => {
+    skipNextAutoScrollRef.current = true
+    await loadOlderHistory()
+  }, [loadOlderHistory])
+
+  const handleClearHistory = useCallback(() => {
+    if (messages.length === 0 || loading) return
+
+    Alert.alert(
+      'למחוק את היסטוריית השיחה?',
+      'הפעולה תמחק את כל ההודעות שנשמרו לחשבון שלך.',
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'מחק',
+          style: 'destructive',
+          onPress: () => {
+            void clearHistory()
+          },
+        },
+      ]
+    )
+  }, [clearHistory, loading, messages.length])
+
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<ChatMessage>) => {
       if (item.id === '__typing__') {
@@ -88,14 +118,40 @@ export default function CoachScreen() {
 
   const listHeader = useCallback(
     () => (
-      <View style={styles.datePillWrap}>
-        <View style={styles.datePill}>
-          <Text style={styles.datePillText}>היום</Text>
+      <View>
+        {hasMoreHistory && (
+          <Pressable
+            onPress={handleLoadOlder}
+            disabled={loadingMore}
+            style={({ pressed }) => [
+              styles.loadMoreHistoryButton,
+              pressed && styles.loadMoreHistoryButtonPressed,
+              loadingMore && styles.loadMoreHistoryButtonDisabled,
+            ]}
+            accessibilityLabel="טען הודעות ישנות"
+          >
+            <Text style={styles.loadMoreHistoryText}>
+              {loadingMore ? 'טוען הודעות...' : 'טען הודעות ישנות'}
+            </Text>
+          </Pressable>
+        )}
+        <View style={styles.datePillWrap}>
+          <View style={styles.datePill}>
+            <Text style={styles.datePillText}>היום</Text>
+          </View>
         </View>
       </View>
     ),
-    []
+    [handleLoadOlder, hasMoreHistory, loadingMore]
   )
+
+  const handleContentSizeChange = useCallback(() => {
+    if (skipNextAutoScrollRef.current) {
+      skipNextAutoScrollRef.current = false
+      return
+    }
+    flatListRef.current?.scrollToEnd({ animated: true })
+  }, [])
 
   return (
     <KeyboardAvoidingView
@@ -106,16 +162,18 @@ export default function CoachScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         {/* RTL: סדר [הגדרות | כותרת | אווטאר] → הגדרות ימין, אווטאר שמאל */}
         <Pressable
-          onPress={() => router.push('/profile?from=coach')}
+          onPress={handleClearHistory}
           hitSlop={12}
           style={({ pressed }) => [
             styles.headerSlot,
             styles.iconBtn,
+            messages.length === 0 && styles.iconBtnDisabled,
             pressed && styles.iconBtnPressed,
           ]}
-          accessibilityLabel="הגדרות"
+          disabled={messages.length === 0 || loading}
+          accessibilityLabel="מחיקת היסטוריית שיחה"
         >
-          <MaterialIcons name="settings" size={24} color="#81ecff" />
+          <MaterialIcons name="delete-outline" size={24} color="#81ecff" />
         </Pressable>
         <View style={styles.headerTitles}>
           <Text style={styles.headerTitle}>מאמן שלך 🎯</Text>
@@ -152,7 +210,7 @@ export default function CoachScreen() {
         ListHeaderComponent={listHeader}
         contentContainerStyle={styles.listContent}
         scrollIndicatorInsets={{ right: 1 }}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+        onContentSizeChange={handleContentSizeChange}
         style={styles.list}
       />
 
@@ -217,6 +275,9 @@ const styles = StyleSheet.create({
   iconBtnPressed: {
     opacity: 0.7,
   },
+  iconBtnDisabled: {
+    opacity: 0.35,
+  },
   avatarOuter: {
     width: 32,
     height: 32,
@@ -249,6 +310,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
     marginTop: 8,
+  },
+  loadMoreHistoryButton: {
+    alignSelf: 'center',
+    minHeight: 36,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#131313',
+    borderWidth: 1,
+    borderColor: 'rgba(129, 236, 255, 0.28)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  loadMoreHistoryButtonPressed: {
+    opacity: 0.8,
+  },
+  loadMoreHistoryButtonDisabled: {
+    opacity: 0.55,
+  },
+  loadMoreHistoryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#81ecff',
+    textAlign: 'center',
+    fontFamily: 'Inter',
   },
   datePill: {
     paddingHorizontal: 16,
