@@ -15,12 +15,12 @@ export async function GET(request: NextRequest) {
       .from('chat_messages')
       .select('id, user_id, role, content, created_at')
       .eq('user_id', userId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(HISTORY_LIMIT)
 
     if (error) throw error
 
-    const messages: ChatMessage[] = data ?? []
+    const messages: ChatMessage[] = [...(data ?? [])].reverse()
     return NextResponse.json({ messages })
   } catch (error) {
     return handleApiError(error)

@@ -68,6 +68,11 @@ export const CreateApproachSchema = ApproachSchema.omit({
     .nullable(),
 })
 
+export const UpdateApproachSchema = CreateApproachSchema.partial().refine(
+  (value) => Object.keys(value).length > 0,
+  'נדרש לפחות שדה אחד לעדכון'
+)
+
 export const ChatMessageSchema = z.object({
   id: z.string().uuid(),
   user_id: z.string().uuid(),

@@ -61,6 +61,26 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await runCoachAgent(coachReq.messages, ctx)
+    if (lastUserMessage.trim().length > 0) {
+      const now = new Date().toISOString()
+      const { error: messageSaveError } = await supabase.from('chat_messages').insert([
+        {
+          user_id: userId,
+          role: 'user',
+          content: lastUserMessage,
+          created_at: now,
+        },
+        {
+          user_id: userId,
+          role: 'assistant',
+          content: result.text,
+          created_at: new Date().toISOString(),
+        },
+      ])
+      if (messageSaveError) {
+        throw new Error(messageSaveError.message)
+      }
+    }
     return NextResponse.json(result)
   } catch (error) {
     return handleApiError(error)

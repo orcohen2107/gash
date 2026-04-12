@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
         .from('approaches')
         .select('date')
         .eq('user_id', userId)
+        .is('deleted_at', null)
         .order('date', { ascending: false })
         .limit(1)
 

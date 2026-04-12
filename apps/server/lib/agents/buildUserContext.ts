@@ -30,6 +30,7 @@ export async function buildUserContext(
     .from('approaches')
     .select('approach_type, chemistry_score, follow_up, date, location')
     .eq('user_id', userId)
+    .is('deleted_at', null)
     .order('date', { ascending: false })
     .limit(30)
 
