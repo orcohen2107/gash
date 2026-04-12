@@ -30,6 +30,7 @@ const ACCENT = '#81ecff'
 const ACCENT_END = '#00d4ec'
 const ON_GRAD = '#003840'
 const MUTED = '#adaaaa'
+const COLLAPSED_TIPS_LIMIT = 4
 
 function categoryDisplayLabel(category: Tip['category']): string {
   switch (category) {
@@ -37,6 +38,8 @@ function categoryDisplayLabel(category: Tip['category']): string {
       return 'שיחה'
     case 'זיהוי':
       return 'גישה'
+    case 'פלירטוט':
+      return 'פלירטוט'
     case 'ביטחון':
       return 'ביטחון'
     case 'ליווי':
@@ -44,10 +47,6 @@ function categoryDisplayLabel(category: Tip['category']): string {
     default:
       return category
   }
-}
-
-function readMinutesFor(tip: Tip): number {
-  return Math.max(1, Math.ceil((tip.title.length + tip.description.length) / 280))
 }
 
 export default function TipsScreen() {
@@ -58,6 +57,7 @@ export default function TipsScreen() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<TipsFilterValue>('all')
   const [completing, setCompleting] = useState(false)
+  const [isTipsExpanded, setIsTipsExpanded] = useState(false)
 
   const streak = useStatsStore((s) => s.streak)
   const checkAndUnlockBadges = useBadgesStore((state) => state.checkAndUnlockBadges)
@@ -65,13 +65,15 @@ export default function TipsScreen() {
   const isLoadingMission = useBadgesStore((s) => s.isLoadingMission)
   const fetchMission = useBadgesStore((s) => s.fetchMission)
   const completeMission = useBadgesStore((s) => s.completeMission)
+  const fetchCurrentStreak = useStatsStore((s) => s.fetchCurrentStreak)
   const approaches = useLogStore((s) => s.approaches)
 
   useFocusEffect(
     useCallback(() => {
       analytics.trackScreenView('tips')
+      void fetchCurrentStreak()
       void fetchMission()
-    }, [fetchMission])
+    }, [fetchCurrentStreak, fetchMission])
   )
 
   useEffect(() => {
@@ -102,8 +104,20 @@ export default function TipsScreen() {
     })
   }, [searchQuery, selectedCategory])
 
+  useEffect(() => {
+    setIsTipsExpanded(false)
+  }, [searchQuery, selectedCategory])
+
+  const isSearchingTips = searchQuery.trim().length > 0
+  const shouldLimitTips = !isSearchingTips && !isTipsExpanded
+  const visibleTips = shouldLimitTips ? filteredTips.slice(0, COLLAPSED_TIPS_LIMIT) : filteredTips
+  const hasHiddenTips = !isSearchingTips && filteredTips.length > COLLAPSED_TIPS_LIMIT
+
+  const isIntroMission = Boolean(mission && mission.title === 'ברוכים הבאים' && approaches.length === 0)
+  const canCompleteMission = Boolean(mission && !isIntroMission && missionProgress.raw >= mission.target)
+
   const onCompleteMission = async () => {
-    if (!mission || missionProgress.raw < mission.target) return
+    if (!mission || !canCompleteMission) return
     setCompleting(true)
     try {
       await completeMission()
@@ -127,7 +141,7 @@ export default function TipsScreen() {
       >
         <View style={[styles.heroRow, { paddingHorizontal: gutter }]}>
           <View style={styles.streakPill}>
-            <Text style={styles.streakText}>🔥 רצף: {streak} ימים</Text>
+            <Text style={styles.streakText}> רצף: {streak} ימים 🔥</Text>
           </View>
           <View style={styles.heroText}>
             <Text style={[styles.heroTitle, { fontSize: heroTitleSize }]}>טיפים ותפקידים</Text>
@@ -147,59 +161,75 @@ export default function TipsScreen() {
           ) : mission ? (
             <>
               <Text style={styles.missionTitle}>{mission.title}</Text>
-              <View style={styles.progressBlock}>
-                <View style={styles.progressLabels}>
-                  <Text style={styles.mutedSmall}>התקדמות</Text>
-                  <Text style={styles.progressFrac}>
-                    {missionProgress.display} מתוך {mission.target}
-                  </Text>
-                </View>
-                <View style={styles.progressTrack}>
-                  <LinearGradient
-                    colors={[ACCENT, ACCENT_END]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={[styles.progressFill, { width: `${missionProgress.pct}%` }]}
-                  />
-                </View>
-              </View>
-              <Pressable
-                onPress={onCompleteMission}
-                disabled={completing || missionProgress.raw < mission.target}
-                style={({ pressed }) => [
-                  styles.completeBtn,
-                  (missionProgress.raw < mission.target || completing) && styles.completeBtnDisabled,
-                  pressed && missionProgress.raw >= mission.target && !completing && { opacity: 0.92 },
-                ]}
-              >
-                <LinearGradient
-                  colors={
-                    missionProgress.raw >= mission.target && !completing
-                      ? [ACCENT, ACCENT_END]
-                      : ['#3a3a3a', '#2a2a2a']
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.completeGradient}
-                >
-                  {completing ? (
-                    <ActivityIndicator color={ON_GRAD} />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.completeLabel,
-                        missionProgress.raw < mission.target && styles.completeLabelMuted,
-                      ]}
+              {mission.description ? (
+                <Text style={styles.missionDescription}>{mission.description}</Text>
+              ) : null}
+              {!isIntroMission ? (
+                <>
+                  <View style={styles.progressBlock}>
+                    <View style={styles.progressLabels}>
+                      <Text style={styles.mutedSmall}>התקדמות</Text>
+                      <Text style={styles.progressFrac}>
+                        {missionProgress.display} מתוך {mission.target}
+                      </Text>
+                    </View>
+                    <View style={styles.progressTrack}>
+                      <LinearGradient
+                        colors={[ACCENT, ACCENT_END]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[styles.progressFill, { width: `${missionProgress.pct}%` }]}
+                      />
+                    </View>
+                  </View>
+                  <Pressable
+                    onPress={onCompleteMission}
+                    disabled={completing || !canCompleteMission}
+                    style={({ pressed }) => [
+                      styles.completeBtn,
+                      (!canCompleteMission || completing) && styles.completeBtnDisabled,
+                      pressed && canCompleteMission && !completing && { opacity: 0.92 },
+                    ]}
+                  >
+                    <LinearGradient
+                      colors={
+                        canCompleteMission && !completing
+                          ? [ACCENT, ACCENT_END]
+                          : ['#3a3a3a', '#2a2a2a']
+                      }
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.completeGradient}
                     >
-                      סמן כבוצע
-                    </Text>
-                  )}
-                </LinearGradient>
-              </Pressable>
+                      {completing ? (
+                        <ActivityIndicator color={ON_GRAD} />
+                      ) : (
+                        <Text
+                          style={[
+                            styles.completeLabel,
+                            !canCompleteMission && styles.completeLabelMuted,
+                          ]}
+                        >
+                          סמן כבוצע
+                        </Text>
+                      )}
+                    </LinearGradient>
+                  </Pressable>
+                </>
+              ) : (
+                <Text style={styles.missionHint}>תיעוד ראשון יפתח לך משימות מותאמות לשבוע.</Text>
+              )}
             </>
           ) : (
             <Text style={styles.missionFallback}>התחל לתעד גישות כדי לקבל משימה שבועית</Text>
           )}
+        </View>
+
+        <View style={[styles.tipsIntro, { marginHorizontal: gutter }]}>
+          <Text style={styles.tipsIntroTitle}>ספריית טיפים</Text>
+          <Text style={styles.tipsIntroText}>
+            כלים קצרים לתרגול ביטחון, שיחה, זיהוי סיטואציות והמשך נכון.
+          </Text>
         </View>
 
         <SearchInput value={searchQuery} onChangeText={setSearchQuery} />
@@ -210,14 +240,12 @@ export default function TipsScreen() {
         />
 
         <View style={styles.listGap}>
-          {filteredTips.length > 0 ? (
-            filteredTips.map((tip, index) => (
+          {visibleTips.length > 0 ? (
+            visibleTips.map((tip) => (
               <TipCard
                 key={tip.id}
                 tip={tip}
-                variant={index === 0 ? 'featured' : 'default'}
                 categoryLabel={categoryDisplayLabel(tip.category)}
-                readMinutes={readMinutesFor(tip)}
               />
             ))
           ) : (
@@ -226,6 +254,21 @@ export default function TipsScreen() {
             </View>
           )}
         </View>
+
+        {hasHiddenTips ? (
+          <Pressable
+            onPress={() => setIsTipsExpanded((value) => !value)}
+            style={({ pressed }) => [
+              styles.tipsToggle,
+              { marginHorizontal: gutter },
+              pressed && { opacity: 0.88 },
+            ]}
+          >
+            <Text style={styles.tipsToggleText}>
+              {isTipsExpanded ? 'הצג פחות' : 'הצג את כל הטיפים'}
+            </Text>
+          </Pressable>
+        ) : null}
 
         <BadgeGallery />
       </ScrollView>
@@ -327,6 +370,19 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginBottom: 16,
   },
+  missionDescription: {
+    fontSize: 14,
+    color: '#d5d5d5',
+    lineHeight: 21,
+    textAlign: 'right',
+    marginBottom: 14,
+  },
+  missionHint: {
+    fontSize: 13,
+    color: MUTED,
+    lineHeight: 20,
+    textAlign: 'right',
+  },
   progressBlock: {
     marginBottom: 20,
   },
@@ -381,8 +437,41 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     lineHeight: 20,
   },
+  tipsIntro: {
+    marginTop: 8,
+    marginBottom: 12,
+    alignItems: 'flex-end',
+  },
+  tipsIntroTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#ffffff',
+    textAlign: 'right',
+    marginBottom: 4,
+  },
+  tipsIntroText: {
+    fontSize: 13,
+    color: MUTED,
+    lineHeight: 19,
+    textAlign: 'right',
+  },
   listGap: {
     marginTop: 8,
+  },
+  tipsToggle: {
+    marginTop: 2,
+    marginBottom: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#20201f',
+    borderWidth: 1,
+    borderColor: 'rgba(129, 236, 255, 0.28)',
+    alignItems: 'center',
+  },
+  tipsToggleText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: ACCENT,
   },
   emptyState: {
     padding: 32,

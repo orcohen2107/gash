@@ -235,6 +235,7 @@ export interface DashboardResponse {
   kpis: DashboardKpis
   insights: InsightsResponse
   mission: DashboardMissionPayload
+  streak: number
 }
 
 // User context built from approaches for AI agents

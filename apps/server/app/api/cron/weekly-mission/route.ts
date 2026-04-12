@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     const userIds = [...new Set(approachesData?.map((r) => r.user_id) ?? [])]
 
     // Get this week's start date (Sunday)
-    const weekStart = new Date()
+    const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay())
     const weekStartStr = weekStart.toISOString().split('T')[0]
 

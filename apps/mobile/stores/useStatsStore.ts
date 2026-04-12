@@ -97,6 +97,7 @@ interface StatsStore {
   topApproachType: ApproachType | null
   isLoadingInsights: boolean
   fetchInsights: () => Promise<InsightsResponse>
+  fetchCurrentStreak: () => Promise<number>
   incrementStreak: () => Promise<{ streak: number; message: string }>
   computeStats: () => void
   setStats: (stats: Partial<Pick<StatsStore, 'streak' | 'totalApproaches' | 'successRate' | 'avgChemistry' | 'topApproachType'>>) => void
@@ -198,6 +199,27 @@ export const useStatsStore = create<StatsStore>()(
           }
         },
 
+        fetchCurrentStreak: async () => {
+          try {
+            const response = await fetch(`${SERVER_URL}/api/user/streak`, {
+              method: 'GET',
+              headers: await getAuthHeaders(),
+            })
+
+            if (!response.ok) {
+              throw new Error(`Failed to fetch streak: ${response.status}`)
+            }
+
+            const data = (await response.json()) as { streak: number }
+            const streak = Number(data.streak) || 0
+            set({ streak })
+            return streak
+          } catch (err) {
+            console.error('Failed to fetch current streak:', err)
+            return get().streak
+          }
+        },
+
         incrementStreak: async () => {
           try {
             const response = await fetch(`${SERVER_URL}/api/user/streak`, {
@@ -205,6 +227,9 @@ export const useStatsStore = create<StatsStore>()(
               headers: await getAuthHeaders(),
               body: JSON.stringify({ action: 'increment' }),
             })
+            if (!response.ok) {
+              throw new Error(`Failed to increment streak: ${response.status}`)
+            }
             const data = (await response.json()) as { streak: number; message: string }
             set({ streak: data.streak })
             // Trigger notification for milestone streaks (7, 14, 21, etc.)

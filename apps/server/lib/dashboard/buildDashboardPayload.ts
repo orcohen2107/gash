@@ -4,6 +4,7 @@ import { runMissionAgent } from '@/lib/agents/mission-agent'
 import type { MissionResponse } from '@/lib/agents/mission-agent'
 import { sendPushNotificationToUser } from '@/lib/pushNotifications'
 import { logger } from '@/lib/logger'
+import { loadCurrentStreak } from '@/lib/streak'
 import type {
   Approach,
   ApproachType,
@@ -248,7 +249,7 @@ export async function buildDashboardPayload(userId: string): Promise<DashboardRe
   const approaches = (rows ?? []) as Approach[]
   const kpis = computeKpis(approaches)
 
-  const [insights, mission] = await Promise.all([
+  const [insights, mission, streak] = await Promise.all([
     loadInsightsPart(userId),
     loadMissionPart(
       userId,
@@ -258,6 +259,7 @@ export async function buildDashboardPayload(userId: string): Promise<DashboardRe
         chemistry_score: a.chemistry_score,
       }))
     ),
+    loadCurrentStreak(userId),
   ])
 
   return {
@@ -265,5 +267,6 @@ export async function buildDashboardPayload(userId: string): Promise<DashboardRe
     kpis,
     insights,
     mission,
+    streak,
   }
 }

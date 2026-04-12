@@ -9,6 +9,8 @@ interface MissionCardProps {
 }
 
 export default function MissionCard({ mission, loading = false }: MissionCardProps) {
+  const isIntroMission = mission?.title === 'ברוכים הבאים'
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -32,11 +34,13 @@ export default function MissionCard({ mission, loading = false }: MissionCardPro
       <Text style={styles.title}>🎯 משימה השבוע</Text>
       <Text style={styles.missionTitle}>{mission.title}</Text>
       <Text style={styles.description}>{mission.description}</Text>
-      <View style={styles.targetContainer}>
-        <Text style={styles.targetLabel}>
-          {mission.target} × {APPROACH_TYPE_LABELS[mission.target_approach_type]}
-        </Text>
-      </View>
+      {!isIntroMission ? (
+        <View style={styles.targetContainer}>
+          <Text style={styles.targetLabel}>
+            {mission.target} × {APPROACH_TYPE_LABELS[mission.target_approach_type]}
+          </Text>
+        </View>
+      ) : null}
     </View>
   )
 }
