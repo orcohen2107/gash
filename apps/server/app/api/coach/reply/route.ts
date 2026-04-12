@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { buildUserContext } from '@/lib/agents/buildUserContext'
 import { runReplyCoachAgent } from '@/lib/agents/replyCoach'
 import { handleApiError } from '@/lib/apiError'
+import { getRequestLogContext, logger } from '@/lib/logger'
 import { ReplyCoachRequestSchema } from '@gash/schemas'
 import type { ReplyCoachRequest } from '@gash/types'
 
@@ -15,8 +16,12 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceClient()
     const ctx = await buildUserContext(userId, supabase)
     const result = await runReplyCoachAgent(validated as ReplyCoachRequest, ctx)
+    logger.info('coach.reply_completed', {
+      ...getRequestLogContext(request, '/api/coach/reply'),
+      userId,
+    })
     return NextResponse.json(result)
   } catch (error) {
-    return handleApiError(error)
+    return handleApiError(error, getRequestLogContext(request, '/api/coach/reply'))
   }
 }

@@ -4,6 +4,7 @@ import { verifyAuth } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { sendPushNotificationToUser } from '@/lib/pushNotifications'
 import { handleApiError } from '@/lib/apiError'
+import { getRequestLogContext, logger } from '@/lib/logger'
 
 const StreakRequestSchema = z.object({
   action: z.enum(['increment']),
@@ -91,10 +92,22 @@ export async function POST(request: NextRequest) {
             streak: newStreak,
           },
         }).catch((err) => {
-          console.error('Failed to send streak milestone notification:', err)
+          logger.error('streak.milestone_push_failed', {
+            ...getRequestLogContext(request, '/api/user/streak'),
+            userId,
+            streak: newStreak,
+            error: err,
+          })
           // Non-blocking — don't fail the API if push notification fails
         })
       }
+
+      logger.info('streak.updated', {
+        ...getRequestLogContext(request, '/api/user/streak'),
+        userId,
+        previousStreak: currentStreak,
+        newStreak,
+      })
 
       return NextResponse.json({
         streak: newStreak,
@@ -104,6 +117,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
   } catch (error) {
-    return handleApiError(error)
+    return handleApiError(error, getRequestLogContext(request, '/api/user/streak'))
   }
 }

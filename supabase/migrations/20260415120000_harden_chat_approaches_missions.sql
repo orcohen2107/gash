@@ -96,3 +96,7 @@ create trigger on_auth_user_created
   for each row execute function private.handle_new_auth_user();
 
 drop function if exists public.handle_new_auth_user();
+
+-- Registration precheck now runs in the server with the service-role client.
+-- Keep privileged helper functions out of the exposed public schema.
+drop function if exists public.fn_registration_precheck(text, text);

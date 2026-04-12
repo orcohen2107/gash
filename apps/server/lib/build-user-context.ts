@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 
 export interface UserContext {
   totalApproaches: number
@@ -19,7 +20,7 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
     .limit(30)
 
   if (error || !approaches) {
-    console.error('Error fetching approaches:', error)
+    logger.error('user_context.fetch_approaches_failed', { userId, error })
     return {
       totalApproaches: 0,
       successRate: 0,
@@ -31,6 +32,16 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
   }
 
   const totalApproaches = approaches.length
+  if (totalApproaches === 0) {
+    return {
+      totalApproaches: 0,
+      successRate: 0,
+      avgChemistry: 0,
+      bestType: null,
+      worstType: null,
+      recentPattern: 'שום דפוס',
+    }
+  }
 
   // Success rate: (positive + neutral) / total * 100
   const successCount = approaches.filter(
@@ -55,13 +66,20 @@ export async function buildUserContext(userId: string): Promise<UserContext> {
     typeCounts[a.approach_type] = (typeCounts[a.approach_type] ?? 0) + 1
   })
 
-  const bestType = Object.keys(typeCounts).reduce((best, type) =>
-    (typeCounts[type] ?? 0) > (typeCounts[best] ?? 0) ? type : best
-  ) || null
+  const typeKeys = Object.keys(typeCounts)
+  const bestType =
+    typeKeys.length === 0
+      ? null
+      : typeKeys.reduce((best, type) =>
+          (typeCounts[type] ?? 0) > (typeCounts[best] ?? 0) ? type : best
+        )
 
-  const worstType = Object.keys(typeCounts).reduce((worst, type) =>
-    (typeCounts[type] ?? 0) < (typeCounts[worst] ?? 0) ? type : worst
-  ) || null
+  const worstType =
+    typeKeys.length === 0
+      ? null
+      : typeKeys.reduce((worst, type) =>
+          (typeCounts[type] ?? 0) < (typeCounts[worst] ?? Infinity) ? type : worst
+        )
 
   // Detect recent pattern
   const recent5 = approaches.slice(0, 5)

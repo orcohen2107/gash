@@ -5,6 +5,7 @@ import { runInsightsAgent } from '@/lib/agents/insights-agent'
 import { sendPushNotificationToUser } from '@/lib/pushNotifications'
 import { createRateLimitResponse } from '@/lib/rateLimit'
 import { handleApiError } from '@/lib/apiError'
+import { getRequestLogContext, logger } from '@/lib/logger'
 
 export async function GET(request: NextRequest) {
   const auth = await verifyAuth(request)
@@ -75,13 +76,23 @@ export async function GET(request: NextRequest) {
           screen: '/(tabs)/dashboard',
         },
       }).catch((err) => {
-        console.error('Failed to send insights notification:', err)
+        logger.error('insights.push_failed', {
+          ...getRequestLogContext(request, '/api/insights'),
+          userId,
+          error: err,
+        })
         // Non-blocking — don't fail if push notification fails
       })
     }
 
+    logger.info('insights.generated', {
+      ...getRequestLogContext(request, '/api/insights'),
+      userId,
+      source: existing ? 'refresh' : 'initial',
+    })
+
     return NextResponse.json(result)
   } catch (error) {
-    return handleApiError(error)
+    return handleApiError(error, getRequestLogContext(request, '/api/insights'))
   }
 }

@@ -4,6 +4,7 @@ import { verifyAuth } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabase'
 import { runMissionAgent } from '@/lib/agents/mission-agent'
 import { handleApiError } from '@/lib/apiError'
+import { getRequestLogContext, logger } from '@/lib/logger'
 import type { MissionResponse } from '@/lib/agents/mission-agent'
 import type { ApproachType } from '@gash/types'
 
@@ -55,6 +56,12 @@ export async function POST(request: NextRequest) {
               .then((r) => (r.data?.missions_completed ?? 0) + 1)) as unknown as number,
           })
       }
+
+      logger.info('mission.completed', {
+        ...getRequestLogContext(request, '/api/coach/mission'),
+        userId,
+        missionId: mission?.id,
+      })
 
       return NextResponse.json({ success: true })
     }
@@ -114,13 +121,21 @@ export async function POST(request: NextRequest) {
       typeCounts[a.approach_type] = (typeCounts[a.approach_type] ?? 0) + 1
     })
 
-    const bestType = Object.keys(typeCounts).reduce((best, type) =>
-      typeCounts[type] > (typeCounts[best] || 0) ? type : best
-    ) as ApproachType
+    const typeKeys = Object.keys(typeCounts)
+    const fallbackType = 'direct' as const
+    const bestType =
+      typeKeys.length === 0
+        ? fallbackType
+        : (typeKeys.reduce((best, type) =>
+            typeCounts[type] > (typeCounts[best] || 0) ? type : best
+          ) as ApproachType)
 
-    const worstType = Object.keys(typeCounts).reduce((worst, type) =>
-      typeCounts[type] < (typeCounts[worst] ?? Infinity) ? type : worst
-    ) as ApproachType
+    const worstType =
+      typeKeys.length === 0
+        ? fallbackType
+        : (typeKeys.reduce((worst, type) =>
+            typeCounts[type] < (typeCounts[worst] ?? Infinity) ? type : worst
+          ) as ApproachType)
 
     // Generate mission via Claude
     const mission = await runMissionAgent({
@@ -144,8 +159,15 @@ export async function POST(request: NextRequest) {
         completed: false,
       })
 
+    logger.info('mission.generated', {
+      ...getRequestLogContext(request, '/api/coach/mission'),
+      userId,
+      targetApproachType: mission.target_approach_type,
+      target: mission.target,
+    })
+
     return NextResponse.json(mission)
   } catch (error) {
-    return handleApiError(error)
+    return handleApiError(error, getRequestLogContext(request, '/api/coach/mission'))
   }
 }

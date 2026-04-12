@@ -3,6 +3,7 @@ import { verifyAuth } from '@/lib/auth'
 import { buildDashboardPayload } from '@/lib/dashboard/buildDashboardPayload'
 import { createRateLimitResponse } from '@/lib/rateLimit'
 import { handleApiError } from '@/lib/apiError'
+import { getRequestLogContext, logger } from '@/lib/logger'
 
 /** חבילה אחת למסך מדדים: גישות, KPI, תובנות, משימה שבועית */
 export async function GET(request: NextRequest) {
@@ -15,8 +16,12 @@ export async function GET(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse
 
     const payload = await buildDashboardPayload(userId)
+    logger.info('dashboard.loaded', {
+      ...getRequestLogContext(request, '/api/dashboard'),
+      userId,
+    })
     return NextResponse.json(payload)
   } catch (error) {
-    return handleApiError(error)
+    return handleApiError(error, getRequestLogContext(request, '/api/dashboard'))
   }
 }

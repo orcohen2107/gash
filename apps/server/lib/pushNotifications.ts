@@ -5,6 +5,7 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase'
+import { logger } from '@/lib/logger'
 
 export interface PushNotificationPayload {
   to: string // Expo push token (ExponentPushToken[...])
@@ -41,15 +42,18 @@ export async function sendPushNotification(payload: PushNotificationPayload): Pr
     })
 
     if (!response.ok) {
-      console.error('Expo push send failed:', await response.text())
+      logger.error('push.expo_send_failed', {
+        status: response.status,
+        responseText: await response.text(),
+      })
       return false
     }
 
     const result = await response.json()
-    console.log('Expo push sent:', result)
+    logger.info('push.expo_sent', { result })
     return true
   } catch (err) {
-    console.error('Failed to send push notification:', err)
+    logger.error('push.send_failed', { error: err })
     return false
   }
 }
@@ -76,7 +80,7 @@ export async function sendPushNotificationToUser({
     const { data: user, error } = await supabaseAdmin.from('users').select('expo_push_token').eq('id', userId).single()
 
     if (error || !user?.expo_push_token) {
-      console.warn(`No push token found for user ${userId}`)
+      logger.warn('push.token_missing', { userId, error })
       return false
     }
 
@@ -98,11 +102,12 @@ export async function sendPushNotificationToUser({
         data,
         sent_at: new Date().toISOString(),
       })
+      logger.info('push.notification_recorded', { userId, notificationType })
     }
 
     return success
   } catch (err) {
-    console.error(`Failed to send push to user ${userId}:`, err)
+    logger.error('push.send_to_user_failed', { userId, notificationType, error: err })
     return false
   }
 }

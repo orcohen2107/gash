@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import { UnauthorizedError } from './auth'
+import { logger } from './logger'
 
-export function handleApiError(error: unknown): NextResponse {
+export function handleApiError(error: unknown, context: Record<string, unknown> = {}): NextResponse {
   if (!(error instanceof UnauthorizedError) && !(error instanceof SyntaxError)) {
-    console.error('[API Error]', error)
+    logger.error('api.error', { ...context, error })
   }
 
   if (error instanceof UnauthorizedError) {

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { logger } from './logger'
 
 interface RateLimitRecord {
   count: number
@@ -108,7 +109,7 @@ export function cleanupRateLimitStore() {
   }
 
   if (cleaned > 0) {
-    console.log(`[RateLimit] Cleaned up ${cleaned} expired entries`)
+    logger.info('rate_limit.cleanup', { cleaned })
   }
 }
 
