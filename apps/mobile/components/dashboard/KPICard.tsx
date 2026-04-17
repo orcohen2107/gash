@@ -65,6 +65,7 @@ const styles = StyleSheet.create({
   },
   icon: {
     marginBottom: 8,
+    alignSelf: 'flex-end',
   },
   label: {
     fontSize: 11,

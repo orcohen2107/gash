@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useRef } from 'react'
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ScrollView,
   Alert,
   useWindowDimensions,
+  Animated,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -64,6 +65,14 @@ const RESPONSE_ICON: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   ignored: 'block',
 }
 
+const RESPONSE_DOT_COLOR: Record<string, string> = {
+  positive: '#4ade80',   // ירוק
+  neutral:  '#f0c040',   // צהוב
+  dismissive: '#ff716c', // אדום
+  negative:   '#ff716c', // אדום
+  ignored:    '#adaaaa', // אפור
+}
+
 interface ApproachDetailScreenProps {
   approach: Approach
   visible: boolean
@@ -88,6 +97,13 @@ function formatDateTimeLine(dateStr: string): string {
   return `${datePart} • ${timePart}`
 }
 
+function chemBarColor(score: number | null): string {
+  if (score == null) return TERTIARY
+  if (score >= 8) return '#81ecff'
+  if (score >= 5) return '#f0c040'
+  return '#ff716c'
+}
+
 export default function ApproachDetailScreen({
   approach,
   visible,
@@ -99,7 +115,34 @@ export default function ApproachDetailScreen({
   const deleteApproach = useLogStore((s) => s.deleteApproach)
   const setPendingEditApproach = useLogStore((s) => s.setPendingEditApproach)
 
+  // Responsive scaling
+  const isNarrow = width < 360
+  const isWide = width > 430
   const contentMaxW = Math.min(672, width)
+  const hPad = Math.max(16, (width - contentMaxW) / 2 + (isNarrow ? 12 : 16))
+  const bentoPad = isNarrow ? 14 : 20
+  const valueFontSize = isNarrow ? 15 : 18
+  const labelFontSize = isNarrow ? 12 : 14
+  const iconBoxSize = isNarrow ? 34 : 40
+  const iconSize = isNarrow ? 18 : 22
+
+  // אנימציה לbar כימיה
+  const chemAnim = useRef(new Animated.Value(0)).current
+  const chemistry = approach.chemistry_score
+  const chemPct = chemistry != null ? Math.min(100, Math.max(0, chemistry * 10)) : 0
+  const barColor = chemBarColor(chemistry)
+
+  useEffect(() => {
+    if (visible) {
+      chemAnim.setValue(0)
+      Animated.timing(chemAnim, {
+        toValue: chemPct,
+        duration: 600,
+        delay: 200,
+        useNativeDriver: false,
+      }).start()
+    }
+  }, [visible, chemPct, chemAnim])
 
   const typeKey = approach.approach_type ?? 'direct'
   const typeLabel = TYPE_LABEL[typeKey] ?? typeKey
@@ -117,10 +160,6 @@ export default function ApproachDetailScreen({
     followKey && followKey in FOLLOW_UP_LABELS
       ? FOLLOW_UP_LABELS[followKey as keyof typeof FOLLOW_UP_LABELS]
       : followKey ?? '—'
-
-  const chemistry = approach.chemistry_score
-  const chemPct =
-    chemistry != null ? Math.min(100, Math.max(0, chemistry * 10)) : 0
 
   const handleDelete = async () => {
     try {
@@ -171,7 +210,7 @@ export default function ApproachDetailScreen({
       <StatusBar style="light" />
       <View style={[styles.root, { paddingTop: insets.top }]}>
         {/* Top bar */}
-        <View style={[styles.topBar, { paddingHorizontal: Math.max(16, (width - contentMaxW) / 2 + 16) }]}>
+        <View style={[styles.topBar, { paddingHorizontal: hPad }]}>
           <Pressable
             onPress={onDismiss}
             style={({ pressed }) => [styles.topBarSide, pressed && { opacity: 0.85 }]}
@@ -194,7 +233,7 @@ export default function ApproachDetailScreen({
             styles.scrollContent,
             {
               paddingBottom: insets.bottom + 32,
-              paddingHorizontal: Math.max(16, (width - contentMaxW) / 2 + 16),
+              paddingHorizontal: hPad,
             },
           ]}
           showsVerticalScrollIndicator
@@ -231,85 +270,101 @@ export default function ApproachDetailScreen({
 
           {/* Bento row 1 */}
           <View style={styles.bentoRow}>
-            <View style={[styles.bentoCell, styles.bentoHalf]}>
+            <View style={[styles.bentoCell, styles.bentoHalf, { padding: bentoPad }]}>
               <View style={styles.bentoHead}>
-                <View style={styles.iconBox}>
-                  <MaterialIcons name={typeIcon} size={22} color={PRIMARY_DIM} />
+                <View style={[styles.iconBox, { width: iconBoxSize, height: iconBoxSize }]}>
+                  <MaterialIcons name={typeIcon} size={iconSize} color={PRIMARY_DIM} />
                 </View>
-                <Text style={styles.bentoLabel}>סוג גישה</Text>
+                <Text style={[styles.bentoLabel, { fontSize: labelFontSize }]}>סוג גישה</Text>
               </View>
-              <Text style={styles.bentoValue}>{typeLabel}</Text>
+              <Text style={[styles.bentoValue, { fontSize: valueFontSize }]}>{typeLabel}</Text>
             </View>
-            <View style={[styles.bentoCell, styles.bentoHalf]}>
+            <View style={[styles.bentoCell, styles.bentoHalf, { padding: bentoPad }]}>
               <View style={styles.bentoHead}>
-                <View style={styles.iconBox}>
-                  <MaterialIcons name={responseIcon} size={22} color={PRIMARY_DIM} />
+                <View style={[styles.iconBox, { width: iconBoxSize, height: iconBoxSize }]}>
+                  <MaterialIcons name={responseIcon} size={iconSize} color={PRIMARY_DIM} />
                 </View>
-                <Text style={styles.bentoLabel}>תגובה</Text>
+                <Text style={[styles.bentoLabel, { fontSize: labelFontSize }]}>תגובה</Text>
               </View>
               <View style={styles.responseRow}>
-                <View style={styles.responseDot} />
-                <Text style={styles.bentoValue}>{responseLabel}</Text>
+                <View
+                  style={[
+                    styles.responseDot,
+                    { backgroundColor: RESPONSE_DOT_COLOR[responseKey] ?? PRIMARY,
+                      shadowColor: RESPONSE_DOT_COLOR[responseKey] ?? PRIMARY },
+                  ]}
+                />
+                <Text style={[styles.bentoValue, { fontSize: valueFontSize }]}>{responseLabel}</Text>
               </View>
             </View>
           </View>
 
           {/* המשך */}
-          <View style={styles.bentoFull}>
+          <View style={[styles.bentoFull, { padding: bentoPad }]}>
             <View style={styles.bentoHead}>
-              <View style={styles.iconBox}>
-                <MaterialIcons name="flag" size={22} color={PRIMARY_DIM} />
+              <View style={[styles.iconBox, { width: iconBoxSize, height: iconBoxSize }]}>
+                <MaterialIcons name="flag" size={iconSize} color={PRIMARY_DIM} />
               </View>
-              <Text style={styles.bentoLabel}>תוצאה / המשך</Text>
+              <Text style={[styles.bentoLabel, { fontSize: labelFontSize }]}>תוצאה / המשך</Text>
             </View>
-            <Text style={styles.bentoValue}>{followLabel}</Text>
+            <Text style={[styles.bentoValue, { fontSize: valueFontSize }]}>{followLabel}</Text>
           </View>
 
           {/* Opener */}
-          <View style={styles.bentoFull}>
+          <View style={[styles.bentoFull, { padding: bentoPad }]}>
             <View style={styles.bentoHead}>
-              <View style={styles.iconBox}>
-                <MaterialIcons name="chat-bubble-outline" size={22} color={PRIMARY_DIM} />
+              <View style={[styles.iconBox, { width: iconBoxSize, height: iconBoxSize }]}>
+                <MaterialIcons name="chat-bubble-outline" size={iconSize} color={PRIMARY_DIM} />
               </View>
-              <Text style={styles.bentoLabel}>פתיחה</Text>
+              <Text style={[styles.bentoLabel, { fontSize: labelFontSize }]}>פתיחה</Text>
             </View>
             <View style={styles.glassQuote}>
-              <Text style={styles.quoteText}>
+              <Text style={[styles.quoteText, { fontSize: isNarrow ? 15 : 18 }]}>
                 {openerText ? `״${openerText}״` : '—'}
               </Text>
             </View>
           </View>
 
           {/* Chemistry */}
-          <View style={styles.bentoFull}>
+          <View style={[styles.bentoFull, { padding: bentoPad }]}>
             <View style={styles.chemHeadRow}>
-              <View style={styles.bentoHead}>
-                <View style={styles.iconBox}>
-                  <MaterialIcons name="science" size={22} color={PRIMARY_DIM} />
+              <View style={[styles.bentoHead, styles.chemHeadLeft]}>
+                <View style={[styles.iconBox, { width: iconBoxSize, height: iconBoxSize }]}>
+                  <MaterialIcons name="science" size={iconSize} color={PRIMARY_DIM} />
                 </View>
-                <Text style={styles.bentoLabel}>כימיה</Text>
+                <Text style={[styles.bentoLabel, { fontSize: labelFontSize }]}>כימיה</Text>
               </View>
-              <Text style={styles.chemScoreBig}>
+              <Text style={[styles.chemScoreBig, { color: barColor, fontSize: isNarrow ? 20 : 24 }]}>
                 {chemistry != null ? `${chemistry}/10` : '—'}
               </Text>
             </View>
             <View style={styles.barTrack}>
-              <View style={[styles.barFillWrap, { width: `${chemPct}%` }]}>
-                <View style={styles.barFill} />
-              </View>
+              <Animated.View
+                style={[
+                  styles.barFill,
+                  {
+                    backgroundColor: barColor,
+                    shadowColor: barColor,
+                    width: chemAnim.interpolate({
+                      inputRange: [0, 100],
+                      outputRange: ['0%', '100%'],
+                    }),
+                  },
+                ]}
+              />
             </View>
           </View>
 
           {/* Notes */}
-          <View style={styles.bentoFull}>
+          <View style={[styles.bentoFull, { padding: bentoPad }]}>
             <View style={styles.bentoHead}>
-              <View style={styles.iconBox}>
-                <MaterialIcons name="notes" size={22} color={PRIMARY_DIM} />
+              <View style={[styles.iconBox, { width: iconBoxSize, height: iconBoxSize }]}>
+                <MaterialIcons name="notes" size={iconSize} color={PRIMARY_DIM} />
               </View>
-              <Text style={styles.bentoLabel}>הערות</Text>
+              <Text style={[styles.bentoLabel, { fontSize: labelFontSize }]}>הערות</Text>
             </View>
             <View style={styles.notesBox}>
-              <Text style={styles.notesText}>{notesText || '—'}</Text>
+              <Text style={[styles.notesText, { fontSize: isNarrow ? 14 : 16 }]}>{notesText || '—'}</Text>
             </View>
           </View>
 
@@ -478,7 +533,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   bentoHead: {
-    flexDirection: 'row',
+    flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 12,
   },
@@ -542,13 +597,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 8,
+  },
+  chemHeadLeft: {
+    flex: 1,
+    minWidth: 0,
   },
   chemScoreBig: {
-    fontSize: 24,
     fontWeight: '900',
-    color: TERTIARY,
     writingDirection: 'ltr',
+    flexShrink: 0,
   },
   barTrack: {
     height: 16,
@@ -557,13 +615,8 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     overflow: 'hidden',
   },
-  barFillWrap: {
-    height: '100%',
-    borderRadius: 9999,
-    overflow: 'hidden',
-  },
   barFill: {
-    flex: 1,
+    height: '100%',
     borderRadius: 9999,
     backgroundColor: TERTIARY,
     shadowColor: TERTIARY,

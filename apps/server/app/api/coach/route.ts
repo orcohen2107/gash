@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const { userId } = await verifyAuth(request)
 
     // Rate limit: 10 requests per minute for coach endpoints
-    const rateLimitResponse = createRateLimitResponse(`coach:${userId}`, {
+    const rateLimitResponse = await createRateLimitResponse(`coach:${userId}`, {
       limit: 10,
     })
     if (rateLimitResponse) return rateLimitResponse

@@ -12,6 +12,7 @@ export const FollowUpTypeSchema = z.enum([
   'kiss',
   'went_home',
 ])
+export const DurationTypeSchema = z.enum(['brief', 'short', 'long'])
 
 export const ApproachSchema = z.object({
   id: z.string().uuid(),
@@ -24,6 +25,8 @@ export const ApproachSchema = z.object({
   chemistry_score: z.number().min(1).max(10).nullable(),
   follow_up: FollowUpTypeSchema.nullable(),
   notes: z.string().nullable(),
+  duration: DurationTypeSchema.nullable().optional(),
+  was_solo: z.boolean().nullable().optional(),
   created_at: z.string(),
 })
 
@@ -66,6 +69,8 @@ export const CreateApproachSchema = ApproachSchema.omit({
     .min(1, 'כימיה חייבת להיות בין 1 ל-10')
     .max(10, 'כימיה חייבת להיות בין 1 ל-10')
     .nullable(),
+  duration: DurationTypeSchema.nullable().optional(),
+  was_solo: z.boolean().nullable().optional(),
 })
 
 export const UpdateApproachSchema = CreateApproachSchema.partial().refine(

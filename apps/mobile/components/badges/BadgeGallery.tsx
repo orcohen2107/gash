@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react'
 import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { MaterialIcons } from '@expo/vector-icons'
 import { BADGES } from '@gash/constants'
 import type { Badge } from '@gash/constants'
 import { useBadgesStore } from '@/stores/useBadgesStore'
@@ -9,6 +10,22 @@ import { useStatsStore } from '@/stores/useStatsStore'
 import { useHorizontalGutter } from '@/lib/responsiveLayout'
 import { getBadgeLiveStatusLine } from '@/lib/badgeProgress'
 import { BadgeDetailModal } from '@/components/badges/BadgeDetailModal'
+
+const BADGE_ICON: Record<string, { name: React.ComponentProps<typeof MaterialIcons>['name']; color: string }> = {
+  'first-step':         { name: 'rocket-launch',        color: '#00d4ec' },
+  'starter':            { name: 'eco',                   color: '#4caf50' },
+  'seasoned':           { name: 'local-fire-department', color: '#ff6b35' },
+  'legend':             { name: 'emoji-events',          color: '#ffd700' },
+  'dominator':          { name: 'workspace-premium',     color: '#81ecff' },
+  'three-day-streak':   { name: 'bolt',                  color: '#ffeb3b' },
+  'seven-day-streak':   { name: 'star',                  color: '#ffd700' },
+  'direct-master':      { name: 'gps-fixed',             color: '#00d4ec' },
+  'situational-player': { name: 'explore',               color: '#81ecff' },
+  'online-active':      { name: 'phone-android',         color: '#4caf50' },
+  'high-spark':         { name: 'auto-awesome',          color: '#ffeb3b' },
+  'charmer':            { name: 'mood',                  color: '#ff80ab' },
+  'savant':             { name: 'psychology',            color: '#ce93d8' },
+}
 
 const COLLAPSED_BADGES_LIMIT = 4
 
@@ -50,14 +67,27 @@ export default function BadgeGallery() {
         accessibilityRole="button"
         accessibilityLabel={`${item.title}. ${isUnlocked ? 'הושג' : 'נעול'}. לחץ לפרטים`}
       >
-        <Text style={styles.badgeEmoji}>{item.emoji}</Text>
+        {!isUnlocked && (
+          <MaterialIcons
+            name="lock"
+            size={14}
+            color="#666"
+            style={styles.lockIcon}
+          />
+        )}
+        <MaterialIcons
+          name={(BADGE_ICON[item.id] ?? { name: 'star', color: '#81ecff' }).name}
+          size={36}
+          color={isUnlocked ? (BADGE_ICON[item.id]?.color ?? '#81ecff') : '#555'}
+          style={{ marginBottom: 10 }}
+        />
         <Text style={[styles.badgeTitle, !isUnlocked && styles.badgeTitleLocked]}>{item.title}</Text>
         {isUnlocked && unlockedBadge && (
           <Text style={styles.unlockedDate}>
             {new Date(unlockedBadge.unlockedAt).toLocaleDateString('he-IL')}
           </Text>
         )}
-        {!isUnlocked && <Text style={styles.lockedText}>נעול · לחץ לפרטים</Text>}
+        {!isUnlocked && <Text style={styles.lockedText}>לחץ לפרטים</Text>}
       </Pressable>
     )
   }
@@ -180,15 +210,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#81ecff',
+    position: 'relative',
+  },
+  lockIcon: {
+    position: 'absolute',
+    top: 10,
+    start: 10,
   },
   badgeContainerLocked: {
     borderColor: '#444444',
     opacity: 0.6,
-  },
-  /** גדול — אימוג'י */
-  badgeEmoji: {
-    fontSize: 36,
-    marginBottom: 10,
   },
   /** בינוני — שם התג */
   badgeTitle: {
@@ -210,7 +241,7 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
   },
   lockedText: {
-    fontSize: 10,
+    fontSize: 12,
     color: '#888888',
     textAlign: 'center',
     writingDirection: 'rtl',

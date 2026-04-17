@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const { userId } = await verifyAuth(request)
 
     // Rate limit: 50 requests per minute for data endpoints
-    const rateLimitResponse = createRateLimitResponse(`approaches:${userId}:get`, {
+    const rateLimitResponse = await createRateLimitResponse(`approaches:${userId}:get`, {
       limit: 50,
     })
     if (rateLimitResponse) return rateLimitResponse
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const { userId } = await verifyAuth(request)
 
     // Rate limit: 20 requests per minute for approach creation
-    const rateLimitResponse = createRateLimitResponse(`approaches:${userId}:post`, {
+    const rateLimitResponse = await createRateLimitResponse(`approaches:${userId}:post`, {
       limit: 20,
     })
     if (rateLimitResponse) return rateLimitResponse
@@ -100,17 +100,27 @@ export async function POST(request: NextRequest) {
       approachType: approach.approach_type,
     })
 
-    // Get AI feedback
-    const userContext = await buildUserContext(userId, supabase)
-    const feedbackResponse = await runApproachFeedbackAgent(
-      { type: 'approach-feedback', approach },
-      userContext
-    )
+    // Get AI feedback — best-effort, never fail the request
+    let feedback: string | null = null
+    try {
+      const userContext = await buildUserContext(userId, supabase)
+      const feedbackResponse = await runApproachFeedbackAgent(
+        { type: 'approach-feedback', approach },
+        userContext
+      )
+      feedback = feedbackResponse.feedback ?? null
+    } catch (feedbackErr) {
+      logger.warn('approach-feedback.skipped', {
+        ...getRequestLogContext(request, '/api/approaches'),
+        approachId: approach.id,
+        reason: feedbackErr instanceof Error ? feedbackErr.message : String(feedbackErr),
+      })
+    }
 
     return NextResponse.json(
       {
         id: approach.id,
-        feedback: feedbackResponse.feedback,
+        feedback,
         created_at: approach.created_at,
       },
       { status: 201 }

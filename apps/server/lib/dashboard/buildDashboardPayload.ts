@@ -10,8 +10,38 @@ import type {
   ApproachType,
   DashboardKpis,
   DashboardResponse,
+  DashboardSummary,
+  FollowUpType,
   InsightsResponse,
 } from '@gash/types'
+
+const APPROACH_TYPES: ApproachType[] = ['direct', 'situational', 'humor', 'online']
+const ONE_DAY_MS = 24 * 60 * 60 * 1000
+
+function startOfWeek(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() - d.getDay())
+  return d
+}
+
+function isDateInRange(dateKey: string, start: Date, end: Date): boolean {
+  const d = new Date(dateKey)
+  d.setHours(0, 0, 0, 0)
+  return d >= start && d < end
+}
+
+function mostCommonFollowUp(approaches: Approach[]): FollowUpType | null {
+  const counts: Partial<Record<FollowUpType, number>> = {}
+  approaches.forEach((approach) => {
+    if (!approach.follow_up) return
+    counts[approach.follow_up] = (counts[approach.follow_up] ?? 0) + 1
+  })
+
+  const entries = Object.entries(counts) as Array<[FollowUpType, number]>
+  if (entries.length === 0) return null
+  return entries.reduce((best, current) => (current[1] > best[1] ? current : best))[0]
+}
 
 function computeKpis(approaches: Approach[]): DashboardKpis {
   const total = approaches.length
@@ -49,6 +79,48 @@ function computeKpis(approaches: Approach[]): DashboardKpis {
     successRate,
     avgChemistry,
     topApproachType,
+  }
+}
+
+function computeSummary(approaches: Approach[], currentStreak: number): DashboardSummary {
+  const now = new Date()
+  const thisWeekStart = startOfWeek(now)
+  const nextWeekStart = new Date(thisWeekStart.getTime() + 7 * ONE_DAY_MS)
+  const lastWeekStart = new Date(thisWeekStart.getTime() - 7 * ONE_DAY_MS)
+
+  const thisWeekApproaches = approaches.filter((a) =>
+    isDateInRange(a.date, thisWeekStart, nextWeekStart)
+  ).length
+  const lastWeekApproaches = approaches.filter((a) =>
+    isDateInRange(a.date, lastWeekStart, thisWeekStart)
+  ).length
+
+  const typeCounts = APPROACH_TYPES.map((type) => ({
+    type,
+    count: approaches.filter((a) => a.approach_type === type).length,
+  }))
+  const strongestType = computeKpis(approaches).topApproachType
+  const practiceType =
+    approaches.length === 0
+      ? null
+      : typeCounts.reduce((lowest, current) =>
+          current.count < lowest.count ? current : lowest
+        ).type
+
+  const highChemistryCount = approaches.filter((a) => (a.chemistry_score ?? 0) >= 8).length
+  const highChemistryRate =
+    approaches.length > 0 ? Math.round((highChemistryCount / approaches.length) * 100) : 0
+
+  return {
+    thisWeekApproaches,
+    lastWeekApproaches,
+    weeklyDelta: thisWeekApproaches - lastWeekApproaches,
+    currentStreak,
+    strongestType,
+    practiceType,
+    mostCommonFollowUp: mostCommonFollowUp(approaches),
+    highChemistryCount,
+    highChemistryRate,
   }
 }
 
@@ -249,22 +321,55 @@ export async function buildDashboardPayload(userId: string): Promise<DashboardRe
   const approaches = (rows ?? []) as Approach[]
   const kpis = computeKpis(approaches)
 
-  const [insights, mission, streak] = await Promise.all([
-    loadInsightsPart(userId),
-    loadMissionPart(
+  // Load insights, mission, and streak with error handling
+  let insights: InsightsResponse = {
+    insights: ['המשך לתעד גישות כדי לקבל תובנות מ-AI', '', ''],
+    weeklyMission: {
+      title: 'התחל הרשלה',
+      description: 'תעד 3 גישות השבוע',
+      target: 3,
+      targetType: 'direct',
+    },
+    trend: 'יציב',
+    trendExplanation: '',
+  }
+  let mission: MissionResponse = {
+    title: 'התחל הרשלה',
+    description: 'תעד גישה אחת כיום',
+    target: 1,
+    target_approach_type: 'direct',
+  }
+  let streak = 0
+
+  try {
+    insights = await loadInsightsPart(userId)
+  } catch (err) {
+    logger.error('dashboard.insights_failed', { userId, error: err })
+  }
+
+  try {
+    mission = await loadMissionPart(
       userId,
       approaches.map((a) => ({
         approach_type: a.approach_type,
         response: a.response,
         chemistry_score: a.chemistry_score,
       }))
-    ),
-    loadCurrentStreak(userId),
-  ])
+    )
+  } catch (err) {
+    logger.error('dashboard.mission_failed', { userId, error: err })
+  }
+
+  try {
+    streak = await loadCurrentStreak(userId)
+  } catch (err) {
+    logger.error('dashboard.streak_failed', { userId, error: err })
+  }
 
   return {
     approaches,
     kpis,
+    summary: computeSummary(approaches, streak),
     insights,
     mission,
     streak,
