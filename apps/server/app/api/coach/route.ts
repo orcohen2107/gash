@@ -6,6 +6,8 @@ import { runCoachAgent } from '@/lib/agents/coach'
 import { runBoostAgent } from '@/lib/agents/boost'
 import { runApproachFeedbackAgent } from '@/lib/agents/approachFeedback'
 import { runDebriefAgent } from '@/lib/agents/debrief'
+import { runPracticeAgent } from '@/lib/agents/practice'
+import { runDebriefChatAgent } from '@/lib/agents/debriefChat'
 import { detectIntent } from '@/lib/agents/router'
 import { handleApiError } from '@/lib/apiError'
 import { createRateLimitResponse } from '@/lib/rateLimit'
@@ -65,37 +67,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(result)
     }
 
-    // Default: coach request
+    // Coach request — route by explicit mode or detect intent
     const validated = CoachRequestSchema.parse(body)
     const coachReq = validated as CoachRequest
+    const mode = coachReq.mode ?? 'coach'
+    const isOpening = coachReq.messages.length === 0
     const lastUserMessage = coachReq.messages.findLast((m) => m.role === 'user')?.content ?? ''
-    const intent = detectIntent(lastUserMessage)
 
-    if (intent === 'boost') {
-      const result = await runBoostAgent(lastUserMessage, ctx)
-      logger.info('coach.agent_completed', {
-        ...getRequestLogContext(request, '/api/coach'),
-        userId,
-        agentType: 'boost',
-        detectedIntent: intent,
-      })
-      return NextResponse.json(result)
+    let result: { text: string; scenario?: string }
+    let agentType: string
+
+    if (mode === 'practice') {
+      result = await runPracticeAgent(coachReq.messages, ctx, isOpening)
+      agentType = 'practice'
+    } else if (mode === 'debrief-chat') {
+      result = await runDebriefChatAgent(coachReq.messages, ctx, isOpening)
+      agentType = 'debrief-chat'
+    } else {
+      // Default coach mode — keep existing intent detection
+      if (!isOpening && detectIntent(lastUserMessage) === 'boost') {
+        const boostResult = await runBoostAgent(lastUserMessage, ctx)
+        logger.info('coach.agent_completed', {
+          ...getRequestLogContext(request, '/api/coach'),
+          userId,
+          agentType: 'boost',
+          detectedIntent: 'boost',
+        })
+        return NextResponse.json(boostResult)
+      }
+      result = await runCoachAgent(coachReq.messages, ctx)
+      agentType = 'coach'
     }
 
-    const result = await runCoachAgent(coachReq.messages, ctx)
-    if (lastUserMessage.trim().length > 0) {
+    // Persist messages — skip opening messages (no user input yet)
+    if (!isOpening && lastUserMessage.trim().length > 0) {
       const now = new Date().toISOString()
       const { error: messageSaveError } = await supabase.from('chat_messages').insert([
         {
           user_id: userId,
           role: 'user',
           content: lastUserMessage,
+          mode,
           created_at: now,
         },
         {
           user_id: userId,
           role: 'assistant',
           content: result.text,
+          mode,
           created_at: new Date().toISOString(),
         },
       ])
@@ -103,11 +122,14 @@ export async function POST(request: NextRequest) {
         throw new Error(messageSaveError.message)
       }
     }
+
     logger.info('coach.agent_completed', {
       ...getRequestLogContext(request, '/api/coach'),
       userId,
-      agentType: 'coach',
-      messageSaved: lastUserMessage.trim().length > 0,
+      agentType,
+      mode,
+      isOpening,
+      messageSaved: !isOpening && lastUserMessage.trim().length > 0,
     })
     return NextResponse.json(result)
   } catch (error) {

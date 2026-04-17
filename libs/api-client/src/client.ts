@@ -1,6 +1,7 @@
 import type {
   CoachRequest,
   CoachResponse,
+  CoachMode,
   OnboardingRequest,
   OnboardingResponse,
   ReplyCoachRequest,
@@ -136,8 +137,8 @@ export interface ApiClient {
     opener: (req: SituationOpenerRequest) => Promise<SituationOpenerResponse>
     feedback: (req: ApproachFeedbackRequest) => Promise<ApproachFeedbackResponse>
     debrief: (req: DebriefRequest) => Promise<DebriefResponse>
-    history: (options?: { before?: string; limit?: number }) => Promise<{ messages: ChatMessage[]; nextCursor?: string | null; hasMore?: boolean }>
-    clearHistory: () => Promise<void>
+    history: (options?: { before?: string; limit?: number; mode?: CoachMode }) => Promise<{ messages: ChatMessage[]; nextCursor?: string | null; hasMore?: boolean }>
+    clearHistory: (mode?: CoachMode) => Promise<void>
   }
   approaches: {
     list: (filters?: { approach_type?: string; startDate?: string; endDate?: string; search?: string; cursor?: string; limit?: number }) => Promise<{ approaches: Approach[]; nextCursor?: string | null; hasMore?: boolean }>
@@ -173,10 +174,14 @@ export function createApiClient(config: ApiClientConfig): ApiClient {
         const params = new URLSearchParams()
         if (options?.before) params.append('before', options.before)
         if (options?.limit) params.append('limit', String(options.limit))
+        if (options?.mode) params.append('mode', options.mode)
         const query = params.toString()
         return get(config, `/api/coach/history${query ? `?${query}` : ''}`)
       },
-      clearHistory: () => del(config, '/api/coach/history'),
+      clearHistory: (mode?: CoachMode) => {
+        const query = mode ? `?mode=${mode}` : ''
+        return del(config, `/api/coach/history${query}`)
+      },
     },
     approaches: {
       list: (filters) => {

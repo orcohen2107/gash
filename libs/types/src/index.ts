@@ -38,11 +38,14 @@ export interface Approach {
   created_at: string
 }
 
+export type CoachMode = 'coach' | 'practice' | 'debrief-chat'
+
 export interface ChatMessage {
   id: string
   user_id: string
   role: 'user' | 'assistant'
   content: string
+  mode?: CoachMode
   created_at: string
 }
 
@@ -74,6 +77,7 @@ export interface UserInsights {
 
 export interface CoachRequest {
   type: 'coach'
+  mode?: CoachMode
   messages: Pick<ChatMessage, 'role' | 'content'>[]
 }
 

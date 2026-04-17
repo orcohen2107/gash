@@ -19,10 +19,12 @@ import * as Clipboard from 'expo-clipboard'
 import Toast from 'react-native-toast-message'
 import { ChatBubble } from '@/components/chat/ChatBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
+import { ModeSelector } from '@/components/coach/ModeSelector'
 import { useChatStore } from '@/stores/useChatStore'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { analytics } from '@/lib/analytics'
-import type { ChatMessage } from '@gash/types'
+import type { ChatMessage, CoachMode } from '@gash/types'
+import { COACH_MODES } from '@gash/constants'
 
 const TYPING_ITEM: ChatMessage = {
   id: '__typing__',
@@ -30,6 +32,12 @@ const TYPING_ITEM: ChatMessage = {
   role: 'assistant',
   content: '',
   created_at: '',
+}
+
+const MODE_SUBTITLES: Record<CoachMode, string> = {
+  coach: 'שאל אותי כל שאלה',
+  practice: 'תרגל — אני אגלם בחורה',
+  'debrief-chat': 'נתח את הגישה שלך',
 }
 
 export default function CoachScreen() {
@@ -40,10 +48,13 @@ export default function CoachScreen() {
   const loading = useChatStore((s) => s.loading)
   const loadingMore = useChatStore((s) => s.loadingMore)
   const hasMoreHistory = useChatStore((s) => s.hasMoreHistory)
+  const activeMode = useChatStore((s) => s.activeMode)
   const sendMessage = useChatStore((s) => s.sendMessage)
   const loadHistory = useChatStore((s) => s.loadHistory)
   const loadOlderHistory = useChatStore((s) => s.loadOlderHistory)
   const clearHistory = useChatStore((s) => s.clearHistory)
+  const selectMode = useChatStore((s) => s.selectMode)
+  const resetToModeSelector = useChatStore((s) => s.resetToModeSelector)
   const flatListRef = useRef<FlatList<ChatMessage>>(null)
   const skipNextAutoScrollRef = useRef(false)
   const [inputValue, setInputValue] = useState('')
@@ -54,9 +65,33 @@ export default function CoachScreen() {
     }, [])
   )
 
+  // Load history when mode is active and messages are empty (e.g. app reopen)
   useEffect(() => {
-    loadHistory()
-  }, [loadHistory])
+    if (activeMode && messages.length === 0 && !loading) {
+      loadHistory(activeMode)
+    }
+  }, [activeMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSelectMode = useCallback(
+    async (mode: CoachMode) => {
+      await selectMode(mode)
+    },
+    [selectMode]
+  )
+
+  const handleSwitchMode = useCallback(() => {
+    Alert.alert(
+      'להחליף מצב?',
+      'השיחה הנוכחית תישמר — תוכל לחזור אליה בפעם הבאה.',
+      [
+        { text: 'ביטול', style: 'cancel' },
+        {
+          text: 'החלף',
+          onPress: resetToModeSelector,
+        },
+      ]
+    )
+  }, [resetToModeSelector])
 
   const handleSend = useCallback(async () => {
     const text = inputValue.trim()
@@ -81,19 +116,19 @@ export default function CoachScreen() {
 
     Alert.alert(
       'למחוק את היסטוריית השיחה?',
-      'הפעולה תמחק את כל ההודעות שנשמרו לחשבון שלך.',
+      'הפעולה תמחק את כל ההודעות של המצב הנוכחי.',
       [
         { text: 'ביטול', style: 'cancel' },
         {
           text: 'מחק',
           style: 'destructive',
           onPress: () => {
-            void clearHistory()
+            void clearHistory(activeMode ?? undefined)
           },
         },
       ]
     )
-  }, [clearHistory, loading, messages.length])
+  }, [clearHistory, loading, messages.length, activeMode])
 
   const renderItem = useCallback(
     ({ item }: ListRenderItemInfo<ChatMessage>) => {
@@ -153,31 +188,41 @@ export default function CoachScreen() {
     flatListRef.current?.scrollToEnd({ animated: true })
   }, [])
 
+  const currentModeConfig = COACH_MODES.find((m) => m.id === activeMode)
+
   return (
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
     >
+      {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        {/* RTL: סדר [הגדרות | כותרת | אווטאר] → הגדרות ימין, אווטאר שמאל */}
         <Pressable
-          onPress={handleClearHistory}
+          onPress={activeMode ? handleClearHistory : undefined}
           hitSlop={12}
           style={({ pressed }) => [
             styles.headerSlot,
             styles.iconBtn,
-            messages.length === 0 && styles.iconBtnDisabled,
-            pressed && styles.iconBtnPressed,
+            (!activeMode || messages.length === 0) && styles.iconBtnDisabled,
+            pressed && activeMode && styles.iconBtnPressed,
           ]}
-          disabled={messages.length === 0 || loading}
+          disabled={!activeMode || messages.length === 0 || loading}
           accessibilityLabel="מחיקת היסטוריית שיחה"
         >
-          <MaterialIcons name="delete-outline" size={24} color="#81ecff" />
+          <MaterialIcons
+            name="delete-outline"
+            size={24}
+            color={activeMode && messages.length > 0 ? '#81ecff' : '#484847'}
+          />
         </Pressable>
         <View style={styles.headerTitles}>
-          <Text style={styles.headerTitle}>מאמן שלך 🎯</Text>
-          <Text style={styles.headerSubtitle}>אני כאן כדי לעזור</Text>
+          <Text style={styles.headerTitle}>
+            {currentModeConfig ? `${currentModeConfig.icon} ${currentModeConfig.label}` : 'מאמן שלך 🎯'}
+          </Text>
+          <Text style={styles.headerSubtitle}>
+            {activeMode ? MODE_SUBTITLES[activeMode] : 'בחר את סוג השיחה'}
+          </Text>
         </View>
         <Pressable
           onPress={() => router.push('/profile?from=coach')}
@@ -202,26 +247,46 @@ export default function CoachScreen() {
         </Pressable>
       </View>
 
-      <FlatList
-        ref={flatListRef}
-        data={data}
-        renderItem={renderItem}
-        keyExtractor={keyExtractor}
-        ListHeaderComponent={listHeader}
-        contentContainerStyle={styles.listContent}
-        scrollIndicatorInsets={{ right: 1 }}
-        onContentSizeChange={handleContentSizeChange}
-        style={styles.list}
-      />
-
-      <View style={styles.inputBar}>
-        <ChatInput
-          value={inputValue}
-          onChangeText={setInputValue}
-          onSend={handleSend}
-          disabled={loading}
+      {/* Mode selector OR chat */}
+      {!activeMode ? (
+        <ModeSelector
+          userName={userProfile?.name}
+          onSelect={handleSelectMode}
         />
-      </View>
+      ) : (
+        <>
+          {/* Switch mode chip */}
+          <Pressable
+            onPress={handleSwitchMode}
+            style={({ pressed }) => [styles.switchChip, pressed && styles.switchChipPressed]}
+          >
+            <MaterialIcons name="swap-horiz" size={14} color="#81ecff" />
+            <Text style={styles.switchChipText}>החלף מצב</Text>
+          </Pressable>
+
+          {/* Chat */}
+          <FlatList
+            ref={flatListRef}
+            data={data}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            ListHeaderComponent={listHeader}
+            contentContainerStyle={styles.listContent}
+            scrollIndicatorInsets={{ right: 1 }}
+            onContentSizeChange={handleContentSizeChange}
+            style={styles.list}
+          />
+
+          <View style={styles.inputBar}>
+            <ChatInput
+              value={inputValue}
+              onChangeText={setInputValue}
+              onSend={handleSend}
+              disabled={loading}
+            />
+          </View>
+        </>
+      )}
 
       <Toast />
     </KeyboardAvoidingView>
@@ -254,11 +319,11 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800',
     color: '#81ecff',
     textAlign: 'center',
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
     fontFamily: 'Inter',
   },
   headerSubtitle: {
@@ -295,6 +360,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  switchChip: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: '#131313',
+    borderWidth: 1,
+    borderColor: 'rgba(129, 236, 255, 0.22)',
+    marginBottom: 4,
+  },
+  switchChipPressed: {
+    opacity: 0.75,
+  },
+  switchChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#81ecff',
+    fontFamily: 'Inter',
   },
   list: {
     flex: 1,

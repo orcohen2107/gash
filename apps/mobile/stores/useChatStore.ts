@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import Toast from 'react-native-toast-message'
 import { createApiClient } from '@gash/api-client'
 import { SERVER_URL, getAuthHeaders, handleAuthError } from '@/lib/server'
-import type { ChatMessage } from '@gash/types'
+import type { ChatMessage, CoachMode } from '@gash/types'
 
 const client = createApiClient({
   serverUrl: SERVER_URL,
@@ -19,10 +19,14 @@ interface ChatStore {
   loadingMore: boolean
   hasMoreHistory: boolean
   historyCursor: string | null
-  loadHistory: () => Promise<void>
+  /** null = בורר מצבים מוצג */
+  activeMode: CoachMode | null
+  loadHistory: (mode?: CoachMode) => Promise<void>
   loadOlderHistory: () => Promise<void>
-  clearHistory: () => Promise<void>
+  clearHistory: (mode?: CoachMode) => Promise<void>
   sendMessage: (text: string) => Promise<void>
+  selectMode: (mode: CoachMode) => Promise<void>
+  resetToModeSelector: () => void
 }
 
 export const useChatStore = create<ChatStore>()((set, get) => ({
@@ -31,11 +35,16 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   loadingMore: false,
   hasMoreHistory: false,
   historyCursor: null,
+  activeMode: null,
 
-  loadHistory: async () => {
+  loadHistory: async (mode?: CoachMode) => {
+    const targetMode = mode ?? get().activeMode ?? 'coach'
     set({ loading: true })
     try {
-      const { messages, nextCursor, hasMore } = await client.coach.history({ limit: 50 })
+      const { messages, nextCursor, hasMore } = await client.coach.history({
+        limit: 50,
+        mode: targetMode,
+      })
       set({
         messages,
         loading: false,
@@ -49,7 +58,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
   },
 
   loadOlderHistory: async () => {
-    const { historyCursor, hasMoreHistory, loadingMore } = get()
+    const { historyCursor, hasMoreHistory, loadingMore, activeMode } = get()
     if (!historyCursor || !hasMoreHistory || loadingMore) return
 
     set({ loadingMore: true })
@@ -57,6 +66,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       const { messages, nextCursor, hasMore } = await client.coach.history({
         before: historyCursor,
         limit: 50,
+        mode: activeMode ?? 'coach',
       })
       set((state) => {
         const existingIds = new Set(state.messages.map((message) => message.id))
@@ -75,10 +85,11 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     }
   },
 
-  clearHistory: async () => {
+  clearHistory: async (mode?: CoachMode) => {
+    const targetMode = mode ?? get().activeMode ?? undefined
     set({ loading: true })
     try {
-      await client.coach.clearHistory()
+      await client.coach.clearHistory(targetMode)
       set({
         messages: [],
         loading: false,
@@ -93,8 +104,58 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
     }
   },
 
+  selectMode: async (mode: CoachMode) => {
+    // Reset chat and set mode
+    set({
+      activeMode: mode,
+      messages: [],
+      loading: true,
+      historyCursor: null,
+      hasMoreHistory: false,
+    })
+
+    // Fetch opening message from server (empty messages = isOpening)
+    let retries = 0
+    while (retries < MAX_RETRIES) {
+      try {
+        const result = await client.coach.send({ type: 'coach', mode, messages: [] })
+        const openingMessage: ChatMessage = {
+          id: `opening-${Date.now()}`,
+          user_id: '',
+          role: 'assistant',
+          content: result.text,
+          mode,
+          created_at: new Date().toISOString(),
+        }
+        set({ messages: [openingMessage], loading: false })
+        return
+      } catch (err) {
+        retries++
+        if (retries >= MAX_RETRIES) {
+          set({ loading: false })
+          Toast.show({ type: 'error', text1: 'בעיה בחיבור', text2: 'נסה שוב' })
+          return
+        }
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY * Math.pow(2, retries - 1)))
+      }
+    }
+  },
+
+  resetToModeSelector: () => {
+    set({
+      activeMode: null,
+      messages: [],
+      loading: false,
+      loadingMore: false,
+      historyCursor: null,
+      hasMoreHistory: false,
+    })
+  },
+
   sendMessage: async (text: string) => {
     if (!text.trim()) return
+    const { activeMode } = get()
+    const mode = activeMode ?? 'coach'
 
     const userMessageId = `user-${Date.now()}`
     const userMessage: ChatMessage = {
@@ -102,6 +163,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       user_id: '',
       role: 'user',
       content: text.trim(),
+      mode,
       created_at: new Date().toISOString(),
     }
 
@@ -113,6 +175,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
         const { messages } = get()
         const result = await client.coach.send({
           type: 'coach',
+          mode,
           messages: messages.map((m) => ({ role: m.role, content: m.content })),
         })
 
@@ -121,6 +184,7 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           user_id: '',
           role: 'assistant',
           content: result.text,
+          mode,
           created_at: new Date().toISOString(),
         }
 
@@ -129,7 +193,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
       } catch (err) {
         retries++
         if (retries >= MAX_RETRIES) {
-          // Remove user message on final failure
           set((state) => ({
             messages: state.messages.filter((m) => m.id !== userMessageId),
             loading: false,
@@ -141,7 +204,6 @@ export const useChatStore = create<ChatStore>()((set, get) => ({
           })
           return
         }
-        // Wait before retry with exponential backoff
         await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY * Math.pow(2, retries - 1)))
       }
     }

@@ -21,11 +21,13 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url)
     const before = url.searchParams.get('before')
     const limit = parseLimit(url.searchParams.get('limit'))
+    const mode = url.searchParams.get('mode') ?? 'coach'
 
     let query = supabase
       .from('chat_messages')
-      .select('id, user_id, role, content, created_at')
+      .select('id, user_id, role, content, mode, created_at')
       .eq('user_id', userId)
+      .eq('mode', mode)
       .order('created_at', { ascending: false })
       .limit(limit + 1)
 
@@ -51,17 +53,25 @@ export async function DELETE(request: NextRequest) {
   try {
     const { userId } = await verifyAuth(request)
     const supabase = createServiceClient()
+    const url = new URL(request.url)
+    const mode = url.searchParams.get('mode')
 
-    const { error } = await supabase
+    let query = supabase
       .from('chat_messages')
       .delete()
       .eq('user_id', userId)
+
+    // If mode specified, delete only that mode's history
+    if (mode) query = query.eq('mode', mode)
+
+    const { error } = await query
 
     if (error) throw error
 
     logger.info('coach.history_deleted', {
       ...getRequestLogContext(request, '/api/coach/history'),
       userId,
+      mode: mode ?? 'all',
     })
 
     return new NextResponse(null, { status: 204 })

@@ -73,6 +73,30 @@ export const HEBREW_LABELS = {
   notesLabel: 'הערות',
 } as const
 
+export const COACH_MODES = [
+  {
+    id: 'practice' as const,
+    label: 'תרגול סיטואציות',
+    icon: '🎭',
+    description: 'תרגל שיחה עם בחורה בסיטואציה אמיתית',
+    openingHint: 'Claude יגלם בחורה ישראלית בסיטואציה — אתה תפנה אליה',
+  },
+  {
+    id: 'coach' as const,
+    label: 'שאלה למאמן',
+    icon: '🎯',
+    description: 'שאל כל שאלה על גישות, ביטחון ודייטינג',
+    openingHint: 'המאמן כאן בשבילך',
+  },
+  {
+    id: 'debrief-chat' as const,
+    label: 'עיבוד גישה',
+    icon: '🔍',
+    description: 'נתח גישה שעשית — מה עבד ומה אפשר לשפר',
+    openingHint: 'ספר מה קרה וקבל ניתוח מעמיק',
+  },
+] as const
+
 export const SERVER_URL_DEFAULT = 'http://localhost:3001'
 
 export const CLAUDE_MODEL_HAIKU = 'claude-haiku-4-5-20251001'

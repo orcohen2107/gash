@@ -86,8 +86,11 @@ export const ChatMessageSchema = z.object({
   created_at: z.string(),
 })
 
+export const CoachModeSchema = z.enum(['coach', 'practice', 'debrief-chat'])
+
 export const CoachRequestSchema = z.object({
   type: z.literal('coach'),
+  mode: CoachModeSchema.optional(),
   messages: z.array(z.object({
     role: z.enum(['user', 'assistant']),
     content: z.string(),
