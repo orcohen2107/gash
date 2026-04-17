@@ -8,9 +8,12 @@ import {
   TextInput,
   useWindowDimensions,
   ScrollView,
+  RefreshControl,
+  ActivityIndicator,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'
+import { useRouter } from 'expo-router'
 import { MaterialIcons } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useLogStore } from '@/stores/useLogStore'
@@ -23,12 +26,13 @@ import { horizontalGutter } from '@/lib/responsiveLayout'
 
 type FilterValue = ApproachType | null
 
+// ב-RTL עם row-reverse, הפריט האחרון במערך מופיע ראשון (ימין) — הכל צריך להיות ראשון ויזואלית
 const FILTERS: { key: string; label: string; value: FilterValue }[] = [
-  { key: 'all', label: 'הכל', value: null },
-  { key: 'direct', label: 'ישירה', value: 'direct' },
-  { key: 'situational', label: 'מצבית', value: 'situational' },
-  { key: 'humor', label: 'הומור', value: 'humor' },
   { key: 'online', label: 'אונליין', value: 'online' },
+  { key: 'humor', label: 'הומור', value: 'humor' },
+  { key: 'situational', label: 'מצבית', value: 'situational' },
+  { key: 'direct', label: 'ישירה', value: 'direct' },
+  { key: 'all', label: 'הכל', value: null },
 ]
 
 const BG = '#0e0e0e'
@@ -51,12 +55,14 @@ function approachMatchesSearch(approach: Approach, q: string): boolean {
 }
 
 export default function JournalScreen() {
+  const router = useRouter()
   const { width } = useWindowDimensions()
   const gutter = horizontalGutter(width)
   const tabBarHeight = useBottomTabBarHeight()
-  const { approaches, loadApproaches, loadMoreApproaches, hasMore, loadingMore } = useLogStore()
+  const { approaches, loading, loadApproaches, loadMoreApproaches, hasMore, loadingMore } = useLogStore()
   const [selectedApproach, setSelectedApproach] = useState<Approach | null>(null)
   const [showDetailModal, setShowDetailModal] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
 
   const [selectedType, setSelectedType] = useState<FilterValue>(null)
   const [searchText, setSearchText] = useState('')
@@ -78,6 +84,12 @@ export default function JournalScreen() {
       return true
     })
   }, [approaches, selectedType, searchText])
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await loadApproaches()
+    setRefreshing(false)
+  }, [loadApproaches])
 
   const handleSelectApproach = (approach: Approach) => {
     setSelectedApproach(approach)
@@ -111,10 +123,23 @@ export default function JournalScreen() {
             textAlign="right"
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
+            returnKeyType="search"
+            clearButtonMode="never"
           />
-          <View style={styles.searchIcon} pointerEvents="none">
-            <MaterialIcons name="location-on" size={22} color={ON_VARIANT} />
-          </View>
+          {searchText.length > 0 ? (
+            <Pressable
+              style={styles.searchIcon}
+              onPress={() => setSearchText('')}
+              hitSlop={8}
+              accessibilityLabel="נקה חיפוש"
+            >
+              <MaterialIcons name="cancel" size={20} color={ON_VARIANT} />
+            </Pressable>
+          ) : (
+            <View style={styles.searchIcon} pointerEvents="none">
+              <MaterialIcons name="search" size={22} color={ON_VARIANT} />
+            </View>
+          )}
         </View>
 
         <ScrollView
@@ -198,22 +223,61 @@ export default function JournalScreen() {
     void loadMoreApproaches()
   }, [loadMoreApproaches])
 
+  // טעינה ראשונית — spinner מרכזי
+  const isInitialLoad = loading && approaches.length === 0
+
   return (
     <View style={styles.container}>
       <AppTopBar from="journal" />
 
-      {filteredApproaches.length === 0 ? (
-        <View style={styles.emptyWrap}>
+      {isInitialLoad ? (
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={PRIMARY} />
+        </View>
+      ) : filteredApproaches.length === 0 ? (
+        <ScrollView
+          style={styles.emptyWrap}
+          contentContainerStyle={styles.emptyScrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={PRIMARY}
+            />
+          }
+        >
           <View style={{ paddingHorizontal: gutter }}>{listHeader}</View>
           <View style={styles.emptyState}>
+            <View style={styles.emptyIconWrap}>
+              <MaterialIcons name="menu-book" size={48} color={ON_VARIANT} />
+            </View>
             <Text style={styles.emptyStateText}>אין רישומים</Text>
             <Text style={styles.emptyStateSubtext}>
               {approaches.length === 0
                 ? 'התחל לתעד גישות כדי לראות אותן כאן'
                 : 'אין גישות המתאימות למסננים'}
             </Text>
+            {approaches.length === 0 && (
+              <Pressable
+                onPress={() => router.push('/(tabs)/log')}
+                style={({ pressed }) => [
+                  styles.emptyCtaBtn,
+                  pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] },
+                ]}
+              >
+                <LinearGradient
+                  colors={[PRIMARY, GRADIENT_END]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.emptyCtaGradient}
+                >
+                  <MaterialIcons name="add" size={20} color={ON_PRIMARY_FIXED} />
+                  <Text style={styles.emptyCtaText}>תעד גישה עכשיו</Text>
+                </LinearGradient>
+              </Pressable>
+            )}
           </View>
-        </View>
+        </ScrollView>
       ) : (
         <FlatList
           data={filteredApproaches}
@@ -231,6 +295,13 @@ export default function JournalScreen() {
           contentContainerStyle={listContentStyle}
           onEndReached={handleEndReached}
           onEndReachedThreshold={0.4}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              tintColor={PRIMARY}
+            />
+          }
         />
       )}
 
@@ -333,9 +404,14 @@ const styles = StyleSheet.create({
   listContent: {
     paddingTop: 8,
   },
+  loadingWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   loadMoreButton: {
     alignSelf: 'center',
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: 20,
     paddingVertical: 10,
     marginTop: 16,
@@ -360,24 +436,55 @@ const styles = StyleSheet.create({
   },
   emptyWrap: {
     flex: 1,
-    paddingHorizontal: 0,
+  },
+  emptyScrollContent: {
+    flexGrow: 1,
   },
   emptyState: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingBottom: 48,
+    gap: 12,
+  },
+  emptyIconWrap: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: SURFACE_HIGH,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
   },
   emptyStateText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     color: ON_SURFACE,
     textAlign: 'center',
-    marginBottom: 8,
   },
   emptyStateSubtext: {
     fontSize: 14,
     color: ON_VARIANT,
     textAlign: 'center',
+    lineHeight: 20,
+  },
+  emptyCtaBtn: {
+    marginTop: 8,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  emptyCtaGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+  },
+  emptyCtaText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: ON_PRIMARY_FIXED,
   },
 })

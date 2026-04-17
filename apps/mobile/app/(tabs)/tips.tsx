@@ -10,6 +10,7 @@ import {
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'
+import { useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { MaterialIcons } from '@expo/vector-icons'
 import { TIPS } from '@gash/constants'
@@ -50,6 +51,7 @@ function categoryDisplayLabel(category: Tip['category']): string {
 }
 
 export default function TipsScreen() {
+  const router = useRouter()
   const { width } = useWindowDimensions()
   const gutter = horizontalGutter(width)
   const tabBarHeight = useBottomTabBarHeight()
@@ -140,9 +142,11 @@ export default function TipsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.heroRow, { paddingHorizontal: gutter }]}>
-          <View style={styles.streakPill}>
-            <Text style={styles.streakText}> רצף: {streak} ימים 🔥</Text>
-          </View>
+          {streak > 0 && (
+            <View style={styles.streakPill}>
+              <Text style={styles.streakText}>רצף: {streak} ימים 🔥</Text>
+            </View>
+          )}
           <View style={styles.heroText}>
             <Text style={[styles.heroTitle, { fontSize: heroTitleSize }]}>טיפים ותפקידים</Text>
             <Text style={styles.heroSub}>התקדמות אישית וכלים להצלחה</Text>
@@ -217,7 +221,23 @@ export default function TipsScreen() {
                   </Pressable>
                 </>
               ) : (
-                <Text style={styles.missionHint}>תיעוד ראשון יפתח לך משימות מותאמות לשבוע.</Text>
+                <>
+                  <Text style={styles.missionHint}>תיעוד ראשון יפתח לך משימות מותאמות לשבוע.</Text>
+                  <Pressable
+                    onPress={() => router.push('/(tabs)/log')}
+                    style={({ pressed }) => [styles.firstLogBtn, pressed && { opacity: 0.85 }]}
+                  >
+                    <LinearGradient
+                      colors={[ACCENT, ACCENT_END]}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.firstLogGradient}
+                    >
+                      <MaterialIcons name="add-circle-outline" size={18} color={ON_GRAD} />
+                      <Text style={styles.firstLogLabel}>תעד גישה ראשונה</Text>
+                    </LinearGradient>
+                  </Pressable>
+                </>
               )}
             </>
           ) : (
@@ -343,7 +363,7 @@ const styles = StyleSheet.create({
     width: 128,
     height: 128,
     borderRadius: 64,
-    backgroundColor: 'rgba(129, 236, 255, 0.06)',
+    backgroundColor: 'rgba(129, 236, 255, 0.12)',
   },
   missionHeader: {
     flexDirection: 'row',
@@ -355,7 +375,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1.2,
-    textTransform: 'uppercase',
     color: '#00d4ec',
     backgroundColor: 'rgba(129, 236, 255, 0.12)',
     paddingHorizontal: 8,
@@ -416,7 +435,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   completeBtnDisabled: {
-    opacity: 0.85,
+    opacity: 0.45,
   },
   completeGradient: {
     paddingVertical: 14,
@@ -436,6 +455,23 @@ const styles = StyleSheet.create({
     color: MUTED,
     textAlign: 'right',
     lineHeight: 20,
+  },
+  firstLogBtn: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginTop: 14,
+  },
+  firstLogGradient: {
+    paddingVertical: 13,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  firstLogLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: ON_GRAD,
   },
   tipsIntro: {
     marginTop: 8,

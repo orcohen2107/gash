@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
+  Alert,
   Pressable,
   StyleSheet,
   Text,
@@ -20,9 +21,9 @@ import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google
 import { MaterialIcons } from '@expo/vector-icons'
 import Toast from 'react-native-toast-message'
 import { CreateApproachSchema } from '@gash/schemas'
-import { FOLLOW_UP_LABELS } from '@gash/constants'
+import { DURATION_LABELS, FOLLOW_UP_LABELS } from '@gash/constants'
 import { z } from 'zod'
-import type { ApproachType, FollowUpType } from '@gash/types'
+import type { ApproachType, DurationType, FollowUpType } from '@gash/types'
 import { useLogStore } from '@/stores/useLogStore'
 import { analytics } from '@/lib/analytics'
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -74,6 +75,12 @@ const FOLLOW_UP_OPTIONS: { value: FollowUpType; label: string }[] = FOLLOW_UP_OR
 
 const CHEMISTRY_HINT =
   'כימיה = כמה ניצוצות הרגשת ביניכם ברגע הפנייה (לא רק מראה חיצוני): 1–3 חלש, 4–6 נחמד, 7–8 חיבור טוב, 9–10 חשמל חזק.'
+
+const DURATION_OPTIONS: { value: DurationType; label: string }[] = [
+  { value: 'brief', label: DURATION_LABELS.brief },
+  { value: 'short', label: DURATION_LABELS.short },
+  { value: 'long', label: DURATION_LABELS.long },
+]
 
 /** חיובית / ניטרלית / שלילית / התעלמות — ערכים תואמי סטטיסטיקות */
 const RESPONSE_OPTIONS: {
@@ -140,7 +147,6 @@ export function LogBottomSheet({ onClose }: LogBottomSheetProps) {
   const [locFocus, setLocFocus] = useState(false)
   const [notesFocus, setNotesFocus] = useState(false)
   const [openerFocus, setOpenerFocus] = useState(false)
-  const [followMenuOpen, setFollowMenuOpen] = useState(false)
 
   const defaultFormValues = useMemo(
     () => ({
@@ -149,9 +155,11 @@ export function LogBottomSheet({ onClose }: LogBottomSheetProps) {
       approach_type: 'direct' as const,
       opener: '',
       response: 'positive' as string,
-      chemistry_score: 8,
+      chemistry_score: 5,
       follow_up: 'nothing' as const,
       notes: '',
+      duration: null as DurationType | null,
+      was_solo: null as boolean | null,
     }),
     []
   )
@@ -162,10 +170,10 @@ export function LogBottomSheet({ onClose }: LogBottomSheetProps) {
     watch,
     setValue,
     reset,
-    formState: { errors, isValid },
+    formState: { errors, isValid, isSubmitting },
   } = useForm<z.infer<typeof CreateApproachSchema>>({
     resolver: zodResolver(CreateApproachSchema),
-    mode: 'onChange',
+    mode: 'onBlur',
     defaultValues: defaultFormValues,
   })
 
@@ -205,17 +213,21 @@ export function LogBottomSheet({ onClose }: LogBottomSheetProps) {
   }
 
   const onFormSubmit = async (data: z.infer<typeof CreateApproachSchema>) => {
-    if (editingId) {
-      await useLogStore.getState().updateApproach(editingId, data)
-    } else {
-      await useLogStore.getState().addApproach(data)
-      analytics.trackApproachLogged(
-        data.approach_type,
-        data.chemistry_score ?? 0,
-        data.follow_up ?? undefined
-      )
+    try {
+      if (editingId) {
+        await useLogStore.getState().updateApproach(editingId, data)
+      } else {
+        await useLogStore.getState().addApproach(data)
+        analytics.trackApproachLogged(
+          data.approach_type,
+          data.chemistry_score ?? 0,
+          data.follow_up ?? undefined
+        )
+      }
+      handleClose()
+    } catch {
+      Alert.alert('בעיה בשמירה', 'בדוק את החיבור שלך ונסה שוב')
     }
-    handleClose()
   }
 
   if (!fontsLoaded) {
@@ -412,8 +424,24 @@ export function LogBottomSheet({ onClose }: LogBottomSheetProps) {
                       <Pressable
                         key={chip.value}
                         onPress={() => {
-                          field.onChange(chip.value)
-                          setValue('opener', '', { shouldValidate: true })
+                          if (active) return
+                          const currentOpener = watch('opener') ?? ''
+                          const doChange = () => {
+                            field.onChange(chip.value)
+                            setValue('opener', '', { shouldValidate: false })
+                          }
+                          if (currentOpener.trim().length > 0) {
+                            Alert.alert(
+                              'שינוי סוג גישה',
+                              'שינוי הסוג ימחק את הפתיחה שכתבת. להמשיך?',
+                              [
+                                { text: 'ביטול', style: 'cancel' },
+                                { text: 'המשך', onPress: doChange },
+                              ]
+                            )
+                          } else {
+                            doChange()
+                          }
                         }}
                         style={({ pressed }) => [
                           styles.chip,
@@ -561,67 +589,88 @@ export function LogBottomSheet({ onClose }: LogBottomSheetProps) {
             render={({ field }) => {
               const followVal = field.value ?? 'nothing'
               return (
-              <View>
-                <Pressable
-                  onPress={() => setFollowMenuOpen((o) => !o)}
-                  accessibilityRole="button"
-                  accessibilityLabel="פתח רשימת תוצאות"
-                >
-                  <SlabShell focused={followMenuOpen}>
-                    <View style={[styles.slabRow, styles.followTriggerRow]}>
-                      <Text
-                        style={[styles.slabSelectText, fontsReady && { fontFamily: 'Inter_600SemiBold' }]}
-                        numberOfLines={2}
+                <View style={styles.followChipWrap}>
+                  {FOLLOW_UP_OPTIONS.map((opt) => {
+                    const active = followVal === opt.value
+                    return (
+                      <Pressable
+                        key={opt.value}
+                        onPress={() => field.onChange(opt.value)}
+                        style={({ pressed }) => [
+                          styles.followChip,
+                          active && styles.followChipActive,
+                          pressed && !active && { opacity: 0.9 },
+                        ]}
                       >
-                        {FOLLOW_UP_LABELS[followVal]}
-                      </Text>
-                      <MaterialIcons
-                        name={followMenuOpen ? 'expand-less' : 'expand-more'}
-                        size={22}
-                        color={C.primaryDim}
-                        style={styles.followChevron}
-                      />
-                    </View>
-                  </SlabShell>
-                </Pressable>
-                {followMenuOpen ? (
-                  <View style={styles.followMenu}>
-                    {FOLLOW_UP_OPTIONS.map((opt, idx) => {
-                      const selected = followVal === opt.value
-                      const isLast = idx === FOLLOW_UP_OPTIONS.length - 1
-                      return (
-                        <Pressable
-                          key={opt.value}
-                          onPress={() => {
-                            field.onChange(opt.value)
-                            setFollowMenuOpen(false)
-                          }}
-                          style={({ pressed }) => [
-                            styles.followMenuItem,
-                            !isLast && styles.followMenuItemBorder,
-                            selected && styles.followMenuItemSelected,
-                            pressed && { opacity: 0.92 },
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.followMenuItemText,
-                              selected && styles.followMenuItemTextSelected,
-                              fontsReady && {
-                                fontFamily: selected ? 'Inter_700Bold' : 'Inter_400Regular',
-                              },
-                            ]}
-                          >
-                            {opt.label}
-                          </Text>
-                        </Pressable>
-                      )
-                    })}
-                  </View>
-                ) : null}
-              </View>
-            )
+                        <Text style={[styles.followChipText, active && styles.followChipTextActive]}>
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    )
+                  })}
+                </View>
+              )
             }}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.fieldLabel}>משך השיחה</Text>
+          <Controller
+            control={control}
+            name="duration"
+            render={({ field }) => (
+              <View style={styles.durationChipWrap}>
+                {DURATION_OPTIONS.map((opt) => {
+                  const active = field.value === opt.value
+                  return (
+                    <Pressable
+                      key={opt.value}
+                      onPress={() => field.onChange(active ? null : opt.value)}
+                      style={({ pressed }) => [
+                        styles.chip,
+                        active && styles.chipActive,
+                        pressed && !active && { opacity: 0.9 },
+                      ]}
+                    >
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt.label}</Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
+            )}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.fieldLabel}>הייתה לבד?</Text>
+          <Controller
+            control={control}
+            name="was_solo"
+            render={({ field }) => (
+              <View style={styles.durationChipWrap}>
+                <Pressable
+                  onPress={() => field.onChange(field.value === true ? null : true)}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    field.value === true && styles.chipActive,
+                    pressed && field.value !== true && { opacity: 0.9 },
+                  ]}
+                >
+                  <Text style={[styles.chipText, field.value === true && styles.chipTextActive]}>לבד</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => field.onChange(field.value === false ? null : false)}
+                  style={({ pressed }) => [
+                    styles.chip,
+                    field.value === false && styles.chipActive,
+                    pressed && field.value !== false && { opacity: 0.9 },
+                  ]}
+                >
+                  <Text style={[styles.chipText, field.value === false && styles.chipTextActive]}>עם חברות/חברים</Text>
+                </Pressable>
+              </View>
+            )}
           />
         </View>
 
@@ -667,15 +716,19 @@ export function LogBottomSheet({ onClose }: LogBottomSheetProps) {
         <Pressable
           style={({ pressed }) => [pressed && { opacity: 0.95 }]}
           onPress={handleSubmit(onFormSubmit)}
-          disabled={!isValid}
+          disabled={!isValid || isSubmitting}
         >
           <LinearGradient
             colors={[C.primary, C.primaryDim]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
-            style={[styles.saveGradient, !isValid && styles.saveDisabled]}
+            style={[styles.saveGradient, (!isValid || isSubmitting) && styles.saveDisabled]}
           >
-            <Text style={styles.saveText}>שמור</Text>
+            {isSubmitting ? (
+              <ActivityIndicator color={C.onPrimaryFixed} size="small" />
+            ) : (
+              <Text style={styles.saveText}>שמור</Text>
+            )}
           </LinearGradient>
         </Pressable>
       </View>
@@ -717,21 +770,20 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: 'PlusJakartaSans_800ExtraBold',
     fontSize: 22,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
     color: C.onSurface,
     textAlign: 'center',
-    textTransform: 'uppercase',
   },
   closeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: C.surfaceHigh,
     alignItems: 'center',
     justifyContent: 'center',
   },
   headerSpacer: {
-    width: 40,
+    width: 44,
   },
   scrollFill: {
     flex: 1,
@@ -756,13 +808,12 @@ const styles = StyleSheet.create({
     color: C.onVariant,
     textAlign: 'right',
     letterSpacing: 0.5,
-    textTransform: 'uppercase',
     paddingHorizontal: 4,
   },
   slab: {
     backgroundColor: C.surfaceHigh,
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
+    borderTopStartRadius: 8,
+    borderTopEndRadius: 8,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
@@ -976,40 +1027,37 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 17,
   },
-  followTriggerRow: {
-    minHeight: 52,
-    alignItems: 'center',
+  followChipWrap: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  followChevron: {
-    marginStart: 8,
-    flexShrink: 0,
-  },
-  followMenu: {
-    marginTop: 8,
+  followChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 12,
     backgroundColor: C.surfaceHigh,
-    overflow: 'hidden',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: C.outlineVariant,
   },
-  followMenuItem: {
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+  followChipActive: {
+    backgroundColor: C.primary,
+    shadowColor: C.primary,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  followMenuItemBorder: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(72, 72, 71, 0.45)',
+  followChipText: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 13,
+    color: C.onVariant,
   },
-  followMenuItemSelected: {
-    backgroundColor: C.surfaceHighest,
+  followChipTextActive: {
+    color: C.onPrimaryFixed,
   },
-  followMenuItemText: {
-    fontSize: 15,
-    color: C.onSurface,
-    textAlign: 'right',
-  },
-  followMenuItemTextSelected: {
-    color: C.primary,
+  durationChipWrap: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   dateModalRoot: {
     flex: 1,
@@ -1021,8 +1069,8 @@ const styles = StyleSheet.create({
   },
   dateModalSheet: {
     backgroundColor: C.surfaceHigh,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
+    borderTopStartRadius: 16,
+    borderTopEndRadius: 16,
     overflow: 'hidden',
   },
   dateModalToolbar: {

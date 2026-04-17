@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from 'react'
-import { Pressable, Text, StyleSheet, ScrollView } from 'react-native'
+import { Pressable, Text, StyleSheet, ScrollView, View } from 'react-native'
+import { LinearGradient } from 'expo-linear-gradient'
 import type { Tip } from '@gash/constants'
 import { useHorizontalGutter } from '@/lib/responsiveLayout'
 
@@ -27,40 +28,52 @@ export default function CategoryFilter({ selectedCategory, onSelectCategory }: C
   }, [])
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      style={styles.scrollRtl}
-      contentContainerStyle={[styles.container, { paddingHorizontal: gutter }]}
-      onContentSizeChange={scrollToStart}
-      onLayout={scrollToStart}
-      scrollEventThrottle={16}
-    >
-      {FILTERS.map((item) => (
-        <Pressable
-          key={item.value}
-          onPress={() => onSelectCategory(item.value)}
-          style={[
-            styles.button,
-            selectedCategory === item.value && styles.buttonActive,
-          ]}
-        >
-          <Text
+    <View style={styles.wrapper}>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.scrollRtl}
+        contentContainerStyle={[styles.container, { paddingHorizontal: gutter }]}
+        onContentSizeChange={scrollToStart}
+        onLayout={scrollToStart}
+        scrollEventThrottle={16}
+      >
+        {FILTERS.map((item) => (
+          <Pressable
+            key={item.value}
+            onPress={() => onSelectCategory(item.value)}
             style={[
-              styles.buttonText,
-              selectedCategory === item.value && styles.buttonTextActive,
+              styles.button,
+              selectedCategory === item.value && styles.buttonActive,
             ]}
           >
-            {item.label}
-          </Text>
-        </Pressable>
-      ))}
-    </ScrollView>
+            <Text
+              style={[
+                styles.buttonText,
+                selectedCategory === item.value && styles.buttonTextActive,
+              ]}
+            >
+              {item.label}
+            </Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      <LinearGradient
+        colors={['transparent', '#0e0e0e']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.fadeEnd}
+        pointerEvents="none"
+      />
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    position: 'relative',
+  },
   /** כיוון LTR + row-reverse: הצ׳יפים מתחילים מימין (הכל ראשון) ונגללים שמאלה */
   scrollRtl: {
     direction: 'ltr',
@@ -88,5 +101,13 @@ const styles = StyleSheet.create({
   buttonTextActive: {
     color: '#003840',
     fontWeight: '700',
+  },
+  fadeEnd: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    end: 0,
+    width: 36,
+    pointerEvents: 'none',
   },
 })

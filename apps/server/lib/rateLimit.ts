@@ -107,13 +107,17 @@ export function cleanupRateLimitStore() {
       cleaned++
     }
   }
-
-  if (cleaned > 0) {
-    logger.info('rate_limit.cleanup', { cleaned })
-  }
 }
 
-// Cleanup store every 5 minutes
-setInterval(() => {
-  cleanupRateLimitStore()
-}, 5 * 60 * 1000)
+/**
+ * TODO: In Vercel Serverless Functions, setInterval doesn't work reliably.
+ * The process is recycled between requests, so the interval is never triggered.
+ * For production, replace this with Upstash Redis:
+ * https://upstash.com/docs/redis/features/ratelimiting
+ *
+ * Current implementation works in development but NOT in production.
+ */
+// Cleanup disabled for serverless compatibility (Vercel recycles processes)
+// setInterval(() => {
+//   cleanupRateLimitStore()
+// }, 5 * 60 * 1000)

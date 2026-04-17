@@ -10,6 +10,8 @@ function formatDayMonth(iso: string): string {
   return `${day}.${month}`
 }
 
+const MIN_POINTS = 2
+
 export default function ChemistryLineChart() {
   const { width: screenW } = useWindowDimensions()
   const { approaches } = useLogStore()
@@ -56,6 +58,20 @@ export default function ChemistryLineChart() {
         </View>
         <View style={[styles.chartShell, { height: 180 }]}>
           <Text style={styles.emptyText}>אין גישות ב־30 הימים האחרונים</Text>
+        </View>
+      </View>
+    )
+  }
+
+  if (chartData.length < MIN_POINTS) {
+    return (
+      <View style={styles.section}>
+        <View style={styles.titleRow}>
+          <Text style={styles.badge}>30 ימים אחרונים</Text>
+          <Text style={styles.title}>כימיה לאורך זמן</Text>
+        </View>
+        <View style={[styles.chartShell, { height: 180 }]}>
+          <Text style={styles.emptyText}>עוד {MIN_POINTS - chartData.length} גישות לגרף הכימיה</Text>
         </View>
       </View>
     )

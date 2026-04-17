@@ -1,4 +1,4 @@
-import type { ApproachType, FollowUpType } from '@gash/types'
+import type { ApproachType, DurationType, FollowUpType } from '@gash/types'
 
 export const APPROACH_TYPE_LABELS: Record<ApproachType, string> = {
   direct: 'ישיר',
@@ -17,6 +17,12 @@ export const FOLLOW_UP_LABELS: Record<FollowUpType, string> = {
   coffee: 'ישבנו לקפה',
   kiss: 'נישקתי',
   went_home: 'הלכנו הביתה',
+}
+
+export const DURATION_LABELS: Record<DurationType, string> = {
+  brief: 'עד דקה',
+  short: '1–5 דקות',
+  long: 'יותר מ-5',
 }
 
 export const CHEMISTRY_LABELS: Record<number, string> = {
@@ -440,8 +446,8 @@ export const BADGES: Badge[] = [
   },
 ]
 
-export const TIP_CATEGORIES: Array<{ label: string; value: Tip['category'] }> = [
-  { label: 'כל', value: 'ביטחון' },
+export const TIP_CATEGORIES: Array<{ label: string; value: Tip['category'] | 'all' }> = [
+  { label: 'כל', value: 'all' },
   { label: 'ביטחון', value: 'ביטחון' },
   { label: 'אישור', value: 'אישור' },
   { label: 'זיהוי', value: 'זיהוי' },

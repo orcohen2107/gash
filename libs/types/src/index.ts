@@ -20,6 +20,7 @@ export type FollowUpType =
   | 'coffee'
   | 'kiss'
   | 'went_home'
+export type DurationType = 'brief' | 'short' | 'long'
 
 export interface Approach {
   id: string
@@ -32,6 +33,8 @@ export interface Approach {
   chemistry_score: number | null
   follow_up: FollowUpType | null
   notes: string | null
+  duration?: DurationType | null
+  was_solo?: boolean | null
   created_at: string
 }
 
@@ -221,6 +224,19 @@ export interface DashboardKpis {
   topApproachType: ApproachType | null
 }
 
+/** תקציר תפעולי למסך מדדים — הופך דאטה גולמי להכוונה קצרה */
+export interface DashboardSummary {
+  thisWeekApproaches: number
+  lastWeekApproaches: number
+  weeklyDelta: number
+  currentStreak: number
+  strongestType: ApproachType | null
+  practiceType: ApproachType | null
+  mostCommonFollowUp: FollowUpType | null
+  highChemistryCount: number
+  highChemistryRate: number
+}
+
 /** משימה שבועית בחבילת /api/dashboard */
 export interface DashboardMissionPayload {
   title: string
@@ -233,6 +249,7 @@ export interface DashboardMissionPayload {
 export interface DashboardResponse {
   approaches: Approach[]
   kpis: DashboardKpis
+  summary: DashboardSummary
   insights: InsightsResponse
   mission: DashboardMissionPayload
   streak: number

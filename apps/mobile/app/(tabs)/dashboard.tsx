@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   View,
   ScrollView,
@@ -6,21 +6,25 @@ import {
   Text,
   useWindowDimensions,
   Pressable,
-  ActivityIndicator,
+  Animated,
+  RefreshControl,
 } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs'
-import MissionCard from '@/components/dashboard/MissionCard'
 import { AppTopBar } from '@/components/layout/AppTopBar'
-import { useBadgesStore } from '@/stores/useBadgesStore'
 import { useStatsStore } from '@/stores/useStatsStore'
 import { useLogStore } from '@/stores/useLogStore'
 import { analytics } from '@/lib/analytics'
 import KPICard from '@/components/dashboard/KPICard'
-import InsightCard from '@/components/dashboard/InsightCard'
 import ChemistryLineChart from '@/components/dashboard/ChemistryLineChart'
 import SuccessBarChart from '@/components/dashboard/SuccessBarChart'
+import WeeklySummaryCard from '@/components/dashboard/WeeklySummaryCard'
+import LearningSummaryCard from '@/components/dashboard/LearningSummaryCard'
+import EmptyDashboardState from '@/components/dashboard/EmptyDashboardState'
+import StreakNudgeCard from '@/components/dashboard/StreakNudgeCard'
+import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton'
 import { APPROACH_TYPE_LABELS, CHEMISTRY_LABELS } from '@gash/constants'
+import type { DashboardSummary } from '@gash/types'
 import { horizontalGutter } from '@/lib/responsiveLayout'
 import {
   injectDashboardDevMock,
@@ -29,19 +33,42 @@ import {
 import { loadDashboardBundle } from '@/lib/loadDashboardBundle'
 
 const BG = '#0e0e0e'
-const INSIGHT_FALLBACK = 'המשך לתעד גישות כדי לקבל תובנות מ-AI'
 
 export default function DashboardScreen() {
   const { width } = useWindowDimensions()
   const gutter = horizontalGutter(width)
   const tabBarHeight = useBottomTabBarHeight()
-  const mission = useBadgesStore((state) => state.mission)
-  const isLoadingMission = useBadgesStore((state) => state.isLoadingMission)
-  const { totalApproaches, successRate, avgChemistry, topApproachType } = useStatsStore()
+  const { totalApproaches, successRate, avgChemistry, topApproachType, streak } = useStatsStore()
   const { approaches } = useLogStore()
-  const [insight, setInsight] = useState<string>('')
-  const [insightUpdatedAt, setInsightUpdatedAt] = useState<Date | null>(null)
+  const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [bundleLoading, setBundleLoading] = useState(true)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const STAGGER_MS = 80
+  const ANIM_DURATION_MS = 350
+  const kpiAnims = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current
+  const learningAnim = useRef(new Animated.Value(0)).current
+
+  const runEntranceAnims = useCallback(() => {
+    const allAnims = [...kpiAnims, learningAnim]
+    allAnims.forEach((anim) => anim.setValue(0))
+    const sequences = allAnims.map((anim, i) =>
+      Animated.sequence([
+        Animated.delay(i * STAGGER_MS),
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: ANIM_DURATION_MS,
+          useNativeDriver: true,
+        }),
+      ])
+    )
+    Animated.parallel(sequences).start()
+  }, [kpiAnims, learningAnim])
 
   const cardWidth = (width - 2 * gutter - 16) / 2
 
@@ -53,35 +80,54 @@ export default function DashboardScreen() {
   )
 
   useEffect(() => {
-    useBadgesStore.setState({ isLoadingMission: true })
     const unsubscribe = useLogStore.getState().subscribeToChanges()
     void (async () => {
       try {
         const data = await loadDashboardBundle()
-        setInsight(data.insights.insights[0] ?? INSIGHT_FALLBACK)
-        setInsightUpdatedAt(new Date())
+        setSummary(data.summary)
       } catch (err) {
         console.error('Failed to load dashboard bundle:', err)
-        useBadgesStore.setState({ isLoadingMission: false })
-        setInsight(INSIGHT_FALLBACK)
-        setInsightUpdatedAt(new Date())
       } finally {
         setBundleLoading(false)
+        runEntranceAnims()
       }
     })()
     return unsubscribe
-  }, [])
+  }, [runEntranceAnims])
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true)
+    try {
+      const data = await loadDashboardBundle()
+      setSummary(data.summary)
+      useStatsStore.getState().computeStats()
+    } catch (err) {
+      console.error('Failed to refresh dashboard:', err)
+    } finally {
+      setIsRefreshing(false)
+      runEntranceAnims()
+    }
+  }, [runEntranceAnims])
 
   const chemRounded = Math.min(10, Math.max(1, Math.round(Number(avgChemistry) || 0)))
-  const chemistryWord = CHEMISTRY_LABELS[chemRounded] ?? ''
+  const chemistryWord =
+    totalApproaches > 0 && avgChemistry > 0 ? (CHEMISTRY_LABELS[chemRounded] ?? '') : ''
 
   if (bundleLoading) {
     return (
       <View style={styles.safe}>
         <AppTopBar from="dashboard" />
-        <View style={[styles.loadingBody, { paddingBottom: tabBarHeight + 32 }]}>
-          <ActivityIndicator size="large" color="#81ecff" />
-        </View>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingHorizontal: gutter, paddingBottom: tabBarHeight + 24 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          scrollEnabled={false}
+        >
+          <DashboardSkeleton />
+        </ScrollView>
       </View>
     )
   }
@@ -99,50 +145,98 @@ export default function DashboardScreen() {
           },
         ]}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor="#81ecff"
+          />
+        }
       >
-        <InsightCard insight={insight} loading={false} lastUpdated={insightUpdatedAt} />
+        {summary ? <WeeklySummaryCard summary={summary} /> : null}
 
-        <View style={styles.kpiGrid}>
-          <View style={{ width: cardWidth }}>
-            <KPICard
-              label='סה״כ גישות'
-              value={totalApproaches}
-              icon="person-add"
-              accent="primary"
-            />
-          </View>
-          <View style={{ width: cardWidth }}>
-            <KPICard
-              label="שיעור הצלחה"
-              value={`${successRate}%`}
-              icon="trending-up"
-              accent="tertiary"
-            />
-          </View>
-          <View style={{ width: cardWidth }}>
-            <KPICard
-              label="כימיה ממוצעת"
-              value={avgChemistry.toFixed(1)}
-              icon="favorite"
-              accent="secondary"
-              subLabel={chemistryWord}
-            />
-          </View>
-          <View style={{ width: cardWidth }}>
-            <KPICard
-              label="סוג הכי מצליח"
-              value={topApproachType ? APPROACH_TYPE_LABELS[topApproachType] : '—'}
-              icon="bolt"
-              accent="primaryGlow"
-              trailingIcon={topApproachType ? 'verified' : undefined}
-            />
-          </View>
-        </View>
+        {totalApproaches === 0 ? (
+          <EmptyDashboardState />
+        ) : (
+          <>
+            <StreakNudgeCard streak={streak} totalApproaches={totalApproaches} />
 
-        <ChemistryLineChart />
-        <SuccessBarChart />
+            <View style={styles.kpiGrid}>
+              <Animated.View
+                style={{
+                  width: cardWidth,
+                  opacity: kpiAnims[0],
+                  transform: [{ translateY: kpiAnims[0].interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+                }}
+              >
+                <KPICard
+                  label='סה״כ גישות'
+                  value={totalApproaches}
+                  icon="person-add"
+                  accent="primary"
+                />
+              </Animated.View>
+              <Animated.View
+                style={{
+                  width: cardWidth,
+                  opacity: kpiAnims[1],
+                  transform: [{ translateY: kpiAnims[1].interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+                }}
+              >
+                <KPICard
+                  label="שיעור הצלחה"
+                  value={`${successRate}%`}
+                  icon="trending-up"
+                  accent="tertiary"
+                />
+              </Animated.View>
+              <Animated.View
+                style={{
+                  width: cardWidth,
+                  opacity: kpiAnims[2],
+                  transform: [{ translateY: kpiAnims[2].interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+                }}
+              >
+                <KPICard
+                  label="כימיה ממוצעת"
+                  value={avgChemistry.toFixed(1)}
+                  icon="favorite"
+                  accent="secondary"
+                  subLabel={chemistryWord}
+                />
+              </Animated.View>
+              <Animated.View
+                style={{
+                  width: cardWidth,
+                  opacity: kpiAnims[3],
+                  transform: [{ translateY: kpiAnims[3].interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+                }}
+              >
+                <KPICard
+                  label="סוג הכי מצליח"
+                  value={topApproachType ? APPROACH_TYPE_LABELS[topApproachType] : '—'}
+                  icon="bolt"
+                  accent="primaryGlow"
+                  trailingIcon={topApproachType ? 'verified' : undefined}
+                />
+              </Animated.View>
+            </View>
 
-        <MissionCard mission={mission} loading={isLoadingMission} />
+            {summary ? (
+              <Animated.View
+                style={{
+                  opacity: learningAnim,
+                  transform: [{ translateY: learningAnim.interpolate({ inputRange: [0, 1], outputRange: [18, 0] }) }],
+                }}
+              >
+                <LearningSummaryCard summary={summary} />
+              </Animated.View>
+            ) : null}
+
+            <SuccessBarChart />
+            <ChemistryLineChart />
+          </>
+        )}
 
         {__DEV__ ? (
           <View style={styles.devMock}>
@@ -159,8 +253,7 @@ export default function DashboardScreen() {
                 void (async () => {
                   try {
                     const data = await clearDashboardDevMock()
-                    setInsight(data.insights.insights[0] ?? INSIGHT_FALLBACK)
-                    setInsightUpdatedAt(new Date())
+                    setSummary(data.summary)
                   } catch (e) {
                     console.error(e)
                   }
@@ -192,13 +285,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
     rowGap: 16,
-    marginBottom: 8,
-  },
-  loadingBody: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 28,
+    marginBottom: 16,
   },
   devMock: {
     marginTop: 24,

@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react'
 import { View, Text, StyleSheet } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
+import { MaterialIcons } from '@expo/vector-icons'
 import { useLogStore } from '@/stores/useLogStore'
 import { APPROACH_TYPE_LABELS } from '@gash/constants'
 import type { ApproachType } from '@gash/types'
@@ -30,8 +31,12 @@ export default function SuccessBarChart() {
 
   if (approaches.length === 0) {
     return (
-      <View style={styles.emptyState}>
-        <Text style={styles.emptyText}>אין נתונים לתצוגה</Text>
+      <View style={styles.section}>
+        <Text style={styles.heading}>הצלחה לפי סוג גישה</Text>
+        <View style={styles.emptyState}>
+          <MaterialIcons name="bar-chart" size={32} color="#3a3a3a" style={styles.emptyIcon} />
+          <Text style={styles.emptyText}>תיעד גישות כדי לראות את שיעורי ההצלחה שלך</Text>
+        </View>
       </View>
     )
   }
@@ -152,11 +157,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#00d4ec',
   },
   emptyState: {
-    paddingVertical: 24,
+    paddingVertical: 32,
     alignItems: 'center',
+    backgroundColor: '#131313',
+    borderRadius: 12,
+    gap: 8,
+  },
+  emptyIcon: {
+    marginBottom: 4,
   },
   emptyText: {
     color: '#adaaaa',
-    fontSize: 12,
+    fontSize: 13,
+    textAlign: 'center',
+    paddingHorizontal: 24,
   },
 })

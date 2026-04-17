@@ -56,7 +56,7 @@ interface LogStore {
   addApproach: (approach: Omit<Approach, 'id' | 'user_id' | 'created_at'>) => Promise<void>
   updateApproach: (id: string, updates: Partial<Approach>) => Promise<void>
   deleteApproach: (id: string) => Promise<void>
-  showFeedback: (feedback: string) => void
+  showFeedback: (feedback: string | null) => void
   subscribeToChanges: () => () => void
 }
 
@@ -135,17 +135,17 @@ export const useLogStore = create<LogStore>()(
             approaches: state.approaches.map((a) => (a.id === tempId ? { ...a, id } : a)),
           }))
 
-          // Show AI feedback
-          get().showFeedback(feedback)
+          // Show AI feedback if available, otherwise simple success message
+          if (feedback) {
+            get().showFeedback(feedback)
+          } else {
+            Toast.show({ type: 'success', text1: 'הגישה נשמרה בהצלחה' })
+          }
 
-          // Increment streak after successful approach creation
+          // Increment streak after successful approach creation (don't show separate toast)
           try {
             const { useStatsStore } = await import('./useStatsStore')
-            const streakResult = await useStatsStore.getState().incrementStreak()
-            Toast.show({
-              type: 'success',
-              text1: streakResult.message,
-            })
+            await useStatsStore.getState().incrementStreak()
           } catch (err) {
             console.error('Failed to increment streak:', err)
           }
@@ -155,11 +155,7 @@ export const useLogStore = create<LogStore>()(
           set((state) => ({
             approaches: state.approaches.filter((a) => a.id !== tempId),
           }))
-          Toast.show({
-            type: 'error',
-            text1: 'בעיה בשמירה',
-            text2: 'בדוק את החיבור שלך ונסה שוב',
-          })
+          throw err
         }
       },
 
