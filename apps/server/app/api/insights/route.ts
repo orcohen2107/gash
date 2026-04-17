@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const userId = auth.userId
 
   // Rate limit: 5 requests per minute for insights (since it calls Claude)
-  const rateLimitResponse = createRateLimitResponse(`insights:${userId}`, {
+  const rateLimitResponse = await createRateLimitResponse(`insights:${userId}`, {
     limit: 5,
   })
   if (rateLimitResponse) return rateLimitResponse

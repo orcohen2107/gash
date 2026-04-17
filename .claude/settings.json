@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh pr create --title 'feat: dashboard overhaul, journal UX improvements & approach schema extensions' --body ':*)",
+      "Bash(npm install:*)"
+    ]
+  }
+}

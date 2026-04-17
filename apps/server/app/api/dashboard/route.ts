@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     const { userId } = await verifyAuth(request)
 
-    const rateLimitResponse = createRateLimitResponse(`dashboard:${userId}`, {
+    const rateLimitResponse = await createRateLimitResponse(`dashboard:${userId}`, {
       limit: 30,
     })
     if (rateLimitResponse) return rateLimitResponse

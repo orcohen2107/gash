@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const { userId } = await verifyAuth(request)
 
     // Rate limit: 50 requests per minute for data endpoints
-    const rateLimitResponse = createRateLimitResponse(`approaches:${userId}:get`, {
+    const rateLimitResponse = await createRateLimitResponse(`approaches:${userId}:get`, {
       limit: 50,
     })
     if (rateLimitResponse) return rateLimitResponse
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     const { userId } = await verifyAuth(request)
 
     // Rate limit: 20 requests per minute for approach creation
-    const rateLimitResponse = createRateLimitResponse(`approaches:${userId}:post`, {
+    const rateLimitResponse = await createRateLimitResponse(`approaches:${userId}:post`, {
       limit: 20,
     })
     if (rateLimitResponse) return rateLimitResponse
