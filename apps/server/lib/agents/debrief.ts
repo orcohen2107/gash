@@ -13,7 +13,10 @@ const STEP_1_SYSTEM = (req: DebriefRequest) => `אתה מאמן אישי. המש
 
 const STEP_2_SYSTEM = (ctx: UserContext) => `אתה מאמן. ראית את הגישה הכושלת ואת תשובת המשתמש לשאלתך.
 
-מה שאתה יודע עליו: הכי מוצלח ב-${ctx.bestType ?? 'direct'} (${ctx.bestRate ?? 0}%).
+מה שאתה יודע עליו:
+- הכי מוצלח ב-${ctx.bestTypeLabel ?? ctx.bestType ?? 'direct'} (${ctx.bestRate ?? 0}%).
+- חולשה ידועה: ${ctx.weaknessEvidence ?? 'אין מספיק נתונים'}
+- דפוס אחרון: ${ctx.recentPattern ?? 'אין מספיק נתונים'}
 
 תן:
 1. אבחנה ספציפית — מה גרם לכישלון (תזמון / פתיחה / אנרגיה / סיטואציה)
@@ -30,6 +33,7 @@ export async function runDebriefAgent(
       system: STEP_1_SYSTEM(req),
       messages: [{ role: 'user', content: 'ביצעתי גישה שלא הלכה' }],
       maxTokens: 200,
+      logContext: { agent: 'debrief', step: 1 },
     })
     return { text, debriefComplete: false }
   }
@@ -39,6 +43,7 @@ export async function runDebriefAgent(
     system: STEP_2_SYSTEM(ctx),
     messages,
     maxTokens: 400,
+    logContext: { agent: 'debrief', step: 2 },
   })
   return { diagnosis: text, mission: '', debriefComplete: true }
 }

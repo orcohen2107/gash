@@ -1,6 +1,35 @@
-import { callClaude } from '../claude'
+import { z } from 'zod'
+import { callClaudeJSON } from '../claude'
 import type { InsightsResponse } from '@gash/types'
 import type { SupabaseClient } from '@supabase/supabase-js'
+
+const InsightsResponseSchema = z.object({
+  insights: z.tuple([z.string(), z.string(), z.string()]),
+  weeklyMission: z.object({
+    title: z.string(),
+    description: z.string(),
+    target: z.number(),
+    targetType: z.string(),
+  }),
+  trend: z.enum(['עולה', 'יורד', 'יציב']),
+  trendExplanation: z.string(),
+})
+
+const FALLBACK_INSIGHTS: InsightsResponse = {
+  insights: [
+    'המשך לתעד גישות כדי לזהות דפוסים אמיתיים.',
+    'ככל שתוסיף יותר פרטים, התובנות יהיו חדות יותר.',
+    'התמקד השבוע בפנייה אחת מתועדת היטב במקום בכמות בלבד.',
+  ],
+  weeklyMission: {
+    title: 'תיעוד מדויק',
+    description: 'תעד גישה אחת עם פתיחה, תגובה וציון כימיה.',
+    target: 1,
+    targetType: 'approaches',
+  },
+  trend: 'יציב',
+  trendExplanation: 'אין מספיק מידע עדכני כדי לקבוע שינוי אמיתי.',
+}
 
 export async function runInsightsAgent(
   userId: string,
@@ -27,6 +56,7 @@ ${JSON.stringify(approaches ?? [], null, 2)}
 - מה הנקודה החלשה ביותר שלו עכשיו?
 
 כתוב תובנות שמרגישות אישיות — "אתה" לא "משתמשים". השתמש במספרים מהנתונים.
+אם הנתונים לא מספיקים למסקנה מסוימת, כתוב זאת במפורש ולא כהשערה.
 בחר משימה שבועית שמתמקדת בנקודה החלשה ביותר. המשימה: קונקרטית, ניתנת לביצוע, מדידה.
 
 החזר JSON בלבד:
@@ -37,12 +67,12 @@ ${JSON.stringify(approaches ?? [], null, 2)}
   "trendExplanation": "..."
 }`
 
-  const text = await callClaude({
+  return callClaudeJSON({
     system,
     messages: [{ role: 'user', content: 'נתח את הנתונים שלי' }],
-    jsonPrefill: true,
     maxTokens: 1500,
+    schema: InsightsResponseSchema,
+    fallback: FALLBACK_INSIGHTS,
+    logContext: { agent: 'insights-legacy' },
   })
-
-  return JSON.parse(text) as InsightsResponse
 }

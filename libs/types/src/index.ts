@@ -266,4 +266,11 @@ export interface UserContext {
   recentPattern?: string
   userStyle?: string
   typeSuccessRates?: Record<string, number>
+  bestTypeLabel?: string
+  worstTypeLabel?: string
+  bestEvidence?: string
+  weaknessEvidence?: string
+  locationPattern?: string
+  recentOpeners?: string[]
+  personalizationRules?: string[]
 }

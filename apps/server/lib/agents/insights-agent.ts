@@ -1,6 +1,6 @@
-import { callClaude } from '@/lib/claude'
+import { z } from 'zod'
+import { callClaudeJSON } from '@/lib/claude'
 import { buildUserContext } from '@/lib/build-user-context'
-import { logger } from '@/lib/logger'
 
 export interface InsightResponse {
   insights: string[]
@@ -10,6 +10,15 @@ export interface InsightResponse {
     target: number
   }
 }
+
+const InsightResponseSchema = z.object({
+  insights: z.array(z.string()).min(1).max(3),
+  weeklyMission: z.object({
+    title: z.string(),
+    description: z.string(),
+    target: z.number(),
+  }),
+})
 
 export async function runInsightsAgent(userId: string): Promise<InsightResponse> {
   const userContext = await buildUserContext(userId)
@@ -41,27 +50,28 @@ export async function runInsightsAgent(userId: string): Promise<InsightResponse>
 2. כל תובנה צריכה להיות בעברית טבעית, בדיוק משפט אחד
 3. התובנות צריכות לדבר על כוחות, דפוסים או תחומים לשיפור
 4. הצע משימה שבועית קטנה וקונקרטית שמטרתה חיזוק הבטחון
+5. השתמש במספר אחד לפחות מתוך הנתונים. אם אין מספיק נתונים למסקנה, כתוב את זה במקום להמציא.
 
 דוגמה לתובנה טובה: "גישות ישירות מעניקות לך שיעור הצלחה גבוה יותר - המשך בזה"
 דוגמה למשימה טובה: { title: "נסה גישה חדשה", description: "נסה את הסוג שטרם שיחקת בו", target: 1 }
 
 ענה בJSON בלבד, בלי טקסט נוסף.`
 
-  try {
-    const raw = await callClaude({ system: systemPrompt, messages: [{ role: 'user', content: 'Generate insights based on approach patterns' }], jsonPrefill: true })
-    const response: InsightResponse = JSON.parse(raw)
-    return response
-  } catch (err) {
-    logger.error('agent.insights_failed', { userId, error: err })
-    return {
+  return callClaudeJSON({
+    system: systemPrompt,
+    messages: [{ role: 'user', content: 'נתח את דפוסי הגישות שלי' }],
+    maxTokens: 900,
+    schema: InsightResponseSchema,
+    fallback: {
       insights: [
-        'המשך לתעד גישות כדי לקבל תובנות מעמיקות',
+        'המשך לתעד גישות כדי לקבל תובנות מעמיקות יותר על מה שעובד לך.',
       ],
       weeklyMission: {
-        title: 'המשך בקיום',
-        description: 'תעד גישה נוספת השבוע',
+        title: 'תיעוד גישה',
+        description: 'תעד גישה אחת השבוע עם פתיחה, תגובה וציון כימיה.',
         target: 1,
       },
-    }
-  }
+    },
+    logContext: { agent: 'insights', userId },
+  })
 }

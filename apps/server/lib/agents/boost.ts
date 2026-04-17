@@ -8,7 +8,8 @@ export async function runBoostAgent(
   const system = `אתה גש. המשתמש עומד לפנות עכשיו — צריך ביטחון מהיר + פתיחה מוכנה.
 
 סיטואציה: ${situation}
-הגישה שעובדת לו הכי טוב: ${ctx.bestType ?? 'ישירה'}
+הגישה שעובדת לו הכי טוב: ${ctx.bestTypeLabel ?? ctx.bestType ?? 'ישירה'}
+ראיה אישית: ${ctx.bestEvidence ?? 'אין מספיק נתונים'}
 
 תחזיר:
 שורה 1: משפט ביטחון קצר ואנרגטי (לא "תהיה עצמך")
@@ -20,6 +21,7 @@ export async function runBoostAgent(
     system,
     messages: [{ role: 'user', content: situation }],
     maxTokens: 200,
+    logContext: { agent: 'boost' },
   })
 
   const lines = text.trim().split('\n').filter(Boolean)

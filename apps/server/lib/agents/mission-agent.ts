@@ -1,7 +1,7 @@
 import { CLAUDE_MODEL_HAIKU } from '@gash/constants'
-import { callClaude } from '../claude'
+import { z } from 'zod'
+import { callClaudeJSON } from '../claude'
 import type { ApproachType } from '@gash/types'
-import { logger } from '@/lib/logger'
 
 interface UserContext {
   totalApproaches: number
@@ -18,47 +18,45 @@ export interface MissionResponse {
   target_approach_type: ApproachType
 }
 
+const MissionResponseSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  target: z.number(),
+  target_approach_type: z.enum(['direct', 'situational', 'humor', 'online']),
+})
+
 export async function runMissionAgent(userContext: UserContext): Promise<MissionResponse> {
   const worstType = userContext.worstType || 'direct'
   const successRate = userContext.successRate || 0
+  const fallback: MissionResponse = {
+    title: 'גישה אחת ממוקדת',
+    description: 'נסה השבוע גישה אחת בסגנון שאתה פחות מתרגל, ותעד מה אמרת ומה הייתה התגובה.',
+    target: 1,
+    target_approach_type: worstType,
+  }
 
   const systemPrompt = `
-אתה מיועץ דייטינג מנוסה.
-על סמך ההתאמות של המשתמש, הצע משימה שבועית אחת בעברית.
+אתה מאמן דייטינג מנוסה.
+על סמך נתוני המשתמש, הצע משימה שבועית אחת בעברית.
 הנתונים:
 - סוג הגישה החלש ביותר: ${worstType}
 - שיעור הצלחה כללי: ${successRate}%
 - סך הגישות: ${userContext.totalApproaches}
 
-הנח בחירה פרטי של אחד מהסוגים הבאים ריב(direct, situational, humor, online).
-המשימה צריכה להיות קצרה, בר-הישג, והעובדות היא טיפול לנקודה החלשה.
-הנח בטקסט בעברית טבע בלבד.
-הנח JSON עם המבנה: {"title": "כותרת בעברית קצרה", "description": "תיאור הנ מילולי", "target": 3, "target_approach_type": "direct/situational/humor/online"}
+בחר target_approach_type אחד בלבד מתוך: direct, situational, humor, online.
+המשימה צריכה להיות קצרה, ברת ביצוע, מדידה, וקשורה לנקודת החולשה.
+אל תכתוב משהו כללי כמו "תעבוד על ביטחון". כתוב פעולה שהוא יכול לבצע השבוע.
+החזר JSON בלבד במבנה:
+{"title": "כותרת בעברית קצרה", "description": "תיאור מעשי", "target": 3, "target_approach_type": "direct"}
 `
 
-  try {
-    const raw = await callClaude({ model: CLAUDE_MODEL_HAIKU, system: systemPrompt, messages: [{ role: 'user', content: 'צור משימה שבועית' }], jsonPrefill: true })
-    const response: MissionResponse = JSON.parse(raw)
-
-    return {
-      title: response.title || 'משימה שבועית',
-      description: response.description || 'שדר לפחות 3 גישות השבוע',
-      target: response.target || 3,
-      target_approach_type:
-        (response.target_approach_type as ApproachType) || 'direct',
-    }
-  } catch (err) {
-    logger.error('agent.mission_failed', {
-      totalApproaches: userContext.totalApproaches,
-      successRate,
-      error: err,
-    })
-    // Return default mission
-    return {
-      title: 'שדר גישה אחת',
-      description: 'נסה לשדר משימה אחת חדשה השבוע בסוג שאתה מתקשה בו',
-      target: 1,
-      target_approach_type: worstType,
-    }
-  }
+  return callClaudeJSON({
+    model: CLAUDE_MODEL_HAIKU,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: 'צור משימה שבועית' }],
+    maxTokens: 400,
+    schema: MissionResponseSchema,
+    fallback,
+    logContext: { agent: 'mission' },
+  })
 }
