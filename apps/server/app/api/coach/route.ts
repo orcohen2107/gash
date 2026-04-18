@@ -84,8 +84,16 @@ export async function POST(request: NextRequest) {
       result = await runDebriefChatAgent(coachReq.messages, ctx, isOpening)
       agentType = 'debrief-chat'
     } else {
-      // Default coach mode — keep existing intent detection
-      if (!isOpening && detectIntent(lastUserMessage) === 'boost') {
+      // Default coach mode — opening message without calling Claude
+      if (isOpening) {
+        const openingText = ctx.hasEnoughData
+          ? `היי! על מה תרצה לדבר היום? אפשר לשאול על סיטואציה ספציפית, לבקש פתיחה מוכנה, או סתם לשוחח.`
+          : `היי! אני גש — המאמן שלך. שאל אותי כל דבר — סיטואציה שנתקלת בה, איך לפתוח שיחה, מה להגיד אחרי. תתחיל 🙌`
+        return NextResponse.json({ text: openingText })
+      }
+
+      // Existing intent detection for non-opening messages
+      if (detectIntent(lastUserMessage) === 'boost') {
         const boostResult = await runBoostAgent(lastUserMessage, ctx)
         logger.info('coach.agent_completed', {
           ...getRequestLogContext(request, '/api/coach'),

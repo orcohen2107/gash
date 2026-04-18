@@ -44,7 +44,7 @@ function buildSystemPrompt(ctx: UserContext, scenario: string): string {
 }
 
 function buildOpeningMessage(scenario: string): string {
-  return `*סיטואציה: ${scenario}*\n\nאתה רואה אותה. הגש!`
+  return `*סיטואציה: ${scenario}*\n\nאתה רואה אותה. מה אתה הולך לעשות? מה אתה אומר!`
 }
 
 export async function runPracticeAgent(
