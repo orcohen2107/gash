@@ -224,7 +224,7 @@ export const useLogStore = create<LogStore>()(
       showFeedback: (feedback) => {
         Toast.show({
           type: 'success',
-          text1: feedback,
+          text1: feedback ?? undefined,
         })
       },
 

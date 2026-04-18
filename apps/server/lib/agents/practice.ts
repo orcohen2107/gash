@@ -54,7 +54,7 @@ export async function runPracticeAgent(
 ): Promise<CoachResponse> {
   if (isOpening) {
     const scenario = pickScenario()
-    return { text: buildOpeningMessage(scenario), scenario }
+    return { text: buildOpeningMessage(scenario) }
   }
 
   // Extract scenario from first assistant message if available

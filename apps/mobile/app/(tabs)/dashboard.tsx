@@ -159,7 +159,7 @@ export default function DashboardScreen() {
           <EmptyDashboardState />
         ) : (
           <>
-            <StreakNudgeCard streak={streak} totalApproaches={totalApproaches} />
+            <StreakNudgeCard streak={streak} />
 
             <View style={styles.kpiGrid}>
               <Animated.View
